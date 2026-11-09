@@ -38,12 +38,7 @@ class WidgetSync {
       'count': src.length,
       'items': [
         for (final it in src.take(5))
-          {
-            'id': it.id,
-            'title': it.title,
-            'due': ddayLabel(dday(it.due)) ?? '',
-            'over': (dday(it.due) ?? 0) < 0,
-          },
+          {'id': it.id, 'title': it.title, 'due': ddayLabel(dday(it.due)) ?? '', 'over': (dday(it.due) ?? 0) < 0},
       ],
     };
   }

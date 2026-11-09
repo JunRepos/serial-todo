@@ -5,9 +5,15 @@ import 'package:serial_todo/models/item.dart';
 
 /// prototype.html 의 예시 데이터와 같은 구조
 List<Item> sample() {
-  Item it(String id, String? parent, int level, double sort,
-          {bool seq = false, List<String>? deps, String status = 'todo'}) =>
-      Item(id: id, parentId: parent, level: level, sort: sort, title: id, seq: seq, deps: deps, status: status);
+  Item it(
+    String id,
+    String? parent,
+    int level,
+    double sort, {
+    bool seq = false,
+    List<String>? deps,
+    String status = 'todo',
+  }) => Item(id: id, parentId: parent, level: level, sort: sort, title: id, seq: seq, deps: deps, status: status);
   return [
     it('g1', null, 0, 1),
     it('p1', 'g1', 1, 1),

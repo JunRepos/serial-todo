@@ -123,14 +123,16 @@ class _ConfigMissing extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => const MaterialApp(
-        home: Scaffold(
-          body: Center(
-            child: Padding(
-              padding: EdgeInsets.all(24),
-              child: Text('SUPABASE_URL / SUPABASE_ANON_KEY 가 빌드에 주입되지 않았습니다.\n'
-                  '--dart-define-from-file 로 빌드하세요.'),
-            ),
+    home: Scaffold(
+      body: Center(
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: Text(
+            'SUPABASE_URL / SUPABASE_ANON_KEY 가 빌드에 주입되지 않았습니다.\n'
+            '--dart-define-from-file 로 빌드하세요.',
           ),
         ),
-      );
+      ),
+    ),
+  );
 }

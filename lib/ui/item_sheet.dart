@@ -32,10 +32,12 @@ void deleteWithUndo(BuildContext context, Repository repo, String id) {
   final snap = repo.remove(id);
   final messenger = ScaffoldMessenger.of(context);
   messenger.hideCurrentSnackBar();
-  messenger.showSnackBar(SnackBar(
-    content: Text('"${it.title}" 삭제됨'),
-    action: SnackBarAction(label: '되돌리기', onPressed: () => repo.restore(snap)),
-  ));
+  messenger.showSnackBar(
+    SnackBar(
+      content: Text('"${it.title}" 삭제됨'),
+      action: SnackBarAction(label: '되돌리기', onPressed: () => repo.restore(snap)),
+    ),
+  );
 }
 
 class _ItemSheet extends StatefulWidget {
@@ -113,7 +115,9 @@ class _ItemSheetState extends State<_ItemSheet> {
         final g = repo.graph;
         final it = g[widget.id];
         if (it == null) {
-          return const Center(child: Padding(padding: EdgeInsets.all(32), child: Text('삭제된 항목입니다.')));
+          return const Center(
+            child: Padding(padding: EdgeInsets.all(32), child: Text('삭제된 항목입니다.')),
+          );
         }
         return _body(context, repo, g, it);
       },
@@ -132,14 +136,20 @@ class _ItemSheetState extends State<_ItemSheet> {
       controller: widget.scroll,
       padding: EdgeInsets.fromLTRB(20, 0, 20, 24 + MediaQuery.viewInsetsOf(context).bottom),
       children: [
-        Row(children: [
-          Badge2(it.levelName, color: scheme.primary),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(path.isEmpty ? '최상위' : path,
-                maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: Tone.muted(context), fontSize: 13)),
-          ),
-        ]),
+        Row(
+          children: [
+            Badge2(it.levelName, color: scheme.primary),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                path.isEmpty ? '최상위' : path,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: Tone.muted(context), fontSize: 13),
+              ),
+            ),
+          ],
+        ),
         const SizedBox(height: 10),
         TextField(
           controller: _title,
@@ -170,44 +180,53 @@ class _ItemSheetState extends State<_ItemSheet> {
           ),
         ] else ...[
           _label('진행률'),
-          Row(children: [
-            ProgressBar(g.progress(it.id), width: 140),
-            const SizedBox(width: 10),
-            Text('하위 액션 ${g.leaves(it.id).length}개', style: TextStyle(color: Tone.muted(context))),
-          ]),
+          Row(
+            children: [
+              ProgressBar(g.progress(it.id), width: 140),
+              const SizedBox(width: 10),
+              Text('하위 액션 ${g.leaves(it.id).length}개', style: TextStyle(color: Tone.muted(context))),
+            ],
+          ),
         ],
         gap,
         _label('우선순위'),
         SegmentedButton<int>(
           showSelectedIcon: false,
-          segments: [for (final p in [1, 2, 3]) ButtonSegment(value: p, label: Text(Item.priorityNames[p]!))],
+          segments: [
+            for (final p in [1, 2, 3]) ButtonSegment(value: p, label: Text(Item.priorityNames[p]!)),
+          ],
           selected: {it.priority},
           onSelectionChanged: (s) => repo.update(it.id, (x) => x.priority = s.first),
         ),
         gap,
         _label('마감'),
-        Row(children: [
-          Expanded(
-            child: OutlinedButton.icon(
-              style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(44), alignment: Alignment.centerLeft),
-              icon: const Icon(Icons.event, size: 18),
-              label: Text(it.due == null ? '날짜 선택' : '${it.due}  ·  ${ddayLabel(dday(it.due))}'),
-              onPressed: () async {
-                final now = DateTime.now();
-                final init = it.due != null ? DateTime.tryParse(it.due!) ?? now : now;
-                final d = await showDatePicker(
-                  context: context,
-                  initialDate: init,
-                  firstDate: DateTime(now.year - 5),
-                  lastDate: DateTime(now.year + 10),
-                );
-                if (d != null) repo.setDue(it.id, dateKey(d));
-              },
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(44),
+                  alignment: Alignment.centerLeft,
+                ),
+                icon: const Icon(Icons.event, size: 18),
+                label: Text(it.due == null ? '날짜 선택' : '${it.due}  ·  ${ddayLabel(dday(it.due))}'),
+                onPressed: () async {
+                  final now = DateTime.now();
+                  final init = it.due != null ? DateTime.tryParse(it.due!) ?? now : now;
+                  final d = await showDatePicker(
+                    context: context,
+                    initialDate: init,
+                    firstDate: DateTime(now.year - 5),
+                    lastDate: DateTime(now.year + 10),
+                  );
+                  if (d != null) repo.setDue(it.id, dateKey(d));
+                },
+              ),
             ),
-          ),
-          if (it.due != null)
-            IconButton(tooltip: '마감 지우기', onPressed: () => repo.setDue(it.id, null), icon: const Icon(Icons.close)),
-        ]),
+            if (it.due != null)
+              IconButton(tooltip: '마감 지우기', onPressed: () => repo.setDue(it.id, null), icon: const Icon(Icons.close)),
+          ],
+        ),
         const SizedBox(height: 8),
         if (leaf)
           SwitchListTile(
@@ -239,25 +258,27 @@ class _ItemSheetState extends State<_ItemSheet> {
           },
         ),
         gap,
-        Row(children: [
-          Expanded(
-            child: OutlinedButton.icon(
-              style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(44)),
-              onPressed: idx > 0 ? () => repo.move(it.id, -1) : null,
-              icon: const Icon(Icons.arrow_upward, size: 18),
-              label: const Text('위로'),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(44)),
+                onPressed: idx > 0 ? () => repo.move(it.id, -1) : null,
+                icon: const Icon(Icons.arrow_upward, size: 18),
+                label: const Text('위로'),
+              ),
             ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: OutlinedButton.icon(
-              style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(44)),
-              onPressed: idx >= 0 && idx < sib.length - 1 ? () => repo.move(it.id, 1) : null,
-              icon: const Icon(Icons.arrow_downward, size: 18),
-              label: const Text('아래로'),
+            const SizedBox(width: 10),
+            Expanded(
+              child: OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(44)),
+                onPressed: idx >= 0 && idx < sib.length - 1 ? () => repo.move(it.id, 1) : null,
+                icon: const Icon(Icons.arrow_downward, size: 18),
+                label: const Text('아래로'),
+              ),
             ),
-          ),
-        ]),
+          ],
+        ),
         const SizedBox(height: 28),
         TextButton.icon(
           style: TextButton.styleFrom(foregroundColor: scheme.error, minimumSize: const Size.fromHeight(44)),
@@ -274,9 +295,12 @@ class _ItemSheetState extends State<_ItemSheet> {
   }
 
   Widget _label(String t) => Padding(
-        padding: const EdgeInsets.only(bottom: 8),
-        child: Text(t, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Tone.muted(context))),
-      );
+    padding: const EdgeInsets.only(bottom: 8),
+    child: Text(
+      t,
+      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Tone.muted(context)),
+    ),
+  );
 
   Widget _deps(BuildContext context, Repository repo, Graph g, Item it, int idx, List<Item> sib) {
     final cands = g.depCandidates(it.id);
@@ -286,61 +310,68 @@ class _ItemSheetState extends State<_ItemSheet> {
     final parent = g.parentOf(it.id);
     final autoPrev = parent != null && g[parent]!.seq && idx > 0 ? sib[idx - 1] : null;
 
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      _label('선행 항목 · 이게 끝나야 시작'),
-      if (autoPrev != null)
-        Padding(
-          padding: const EdgeInsets.only(bottom: 8),
-          child: Text('순차 진행: "${autoPrev.title}" 자동 선행',
-              style: TextStyle(fontSize: 12.5, color: Tone.muted(context))),
-        ),
-      if (cands.isEmpty)
-        Text('고를 수 있는 항목이 없습니다.', style: TextStyle(color: Tone.muted(context)))
-      else ...[
-        if (cands.length > 6)
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _label('선행 항목 · 이게 끝나야 시작'),
+        if (autoPrev != null)
           Padding(
-            padding: const EdgeInsets.only(bottom: 6),
-            child: TextField(
-              controller: _depQuery,
-              decoration: const InputDecoration(prefixIcon: Icon(Icons.search, size: 20), hintText: '검색'),
-              onChanged: (_) => setState(() {}),
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text(
+              '순차 진행: "${autoPrev.title}" 자동 선행',
+              style: TextStyle(fontSize: 12.5, color: Tone.muted(context)),
             ),
           ),
-        Container(
-          constraints: const BoxConstraints(maxHeight: 280),
-          decoration: BoxDecoration(
-            border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
-            borderRadius: BorderRadius.circular(10),
+        if (cands.isEmpty)
+          Text('고를 수 있는 항목이 없습니다.', style: TextStyle(color: Tone.muted(context)))
+        else ...[
+          if (cands.length > 6)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: TextField(
+                controller: _depQuery,
+                decoration: const InputDecoration(prefixIcon: Icon(Icons.search, size: 20), hintText: '검색'),
+                onChanged: (_) => setState(() {}),
+              ),
+            ),
+          Container(
+            constraints: const BoxConstraints(maxHeight: 280),
+            decoration: BoxDecoration(
+              border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: ListView(
+              shrinkWrap: true,
+              padding: EdgeInsets.zero,
+              children: [
+                for (final c in shown)
+                  Builder(
+                    builder: (_) {
+                      final on = deps.contains(c.id);
+                      final dis = !on && g.reaches(c.id, it.id);
+                      return CheckboxListTile(
+                        dense: true,
+                        controlAffinity: ListTileControlAffinity.leading,
+                        contentPadding: EdgeInsets.only(left: 4.0 + (c.level - 1).clamp(0, 2) * 16, right: 8),
+                        value: on,
+                        onChanged: dis
+                            ? null
+                            : (v) => repo.update(it.id, (x) {
+                                final s = x.deps.toSet();
+                                v == true ? s.add(c.id) : s.remove(c.id);
+                                x.deps = s.toList();
+                              }),
+                        title: Text(c.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+                        subtitle: dis ? const Text('순환이 생겨 선택 불가') : null,
+                        secondary: Badge2(c.levelName),
+                      );
+                    },
+                  ),
+              ],
+            ),
           ),
-          child: ListView(
-            shrinkWrap: true,
-            padding: EdgeInsets.zero,
-            children: [
-              for (final c in shown)
-                Builder(builder: (_) {
-                  final on = deps.contains(c.id);
-                  final dis = !on && g.reaches(c.id, it.id);
-                  return CheckboxListTile(
-                    dense: true,
-                    controlAffinity: ListTileControlAffinity.leading,
-                    contentPadding: EdgeInsets.only(left: 4.0 + (c.level - 1).clamp(0, 2) * 16, right: 8),
-                    value: on,
-                    onChanged: dis
-                        ? null
-                        : (v) => repo.update(it.id, (x) {
-                              final s = x.deps.toSet();
-                              v == true ? s.add(c.id) : s.remove(c.id);
-                              x.deps = s.toList();
-                            }),
-                    title: Text(c.title, maxLines: 1, overflow: TextOverflow.ellipsis),
-                    subtitle: dis ? const Text('순환이 생겨 선택 불가') : null,
-                    secondary: Badge2(c.levelName),
-                  );
-                }),
-            ],
-          ),
-        ),
+        ],
       ],
-    ]);
+    );
   }
 }

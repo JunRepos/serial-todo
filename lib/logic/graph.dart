@@ -77,24 +77,27 @@ class Graph {
   }
 
   List<String> leaves(String id) => _leavesMemo[id] ??= () {
-        final k = kids(id);
-        if (k.isEmpty) return [id];
-        return [for (final c in k) ...leaves(c.id)];
-      }();
+    final k = kids(id);
+    if (k.isEmpty) return [id];
+    return [for (final c in k) ...leaves(c.id)];
+  }();
 
   bool isLeaf(String id) => kids(id).isEmpty;
 
   bool isDone(String id) => _doneMemo[id] ??= () {
-        final k = kids(id);
-        if (k.isEmpty) return byId[id]?.status == 'done';
-        return k.every((c) => isDone(c.id));
-      }();
+    final k = kids(id);
+    if (k.isEmpty) return byId[id]?.status == 'done';
+    return k.every((c) => isDone(c.id));
+  }();
 
   /// 명시한 deps + (부모가 seq이면 바로 위 형제)
   List<String> effDeps(String id) {
     final it = byId[id];
     if (it == null) return const [];
-    final d = <String>{for (final x in it.deps) if (byId.containsKey(x) && x != id) x};
+    final d = <String>{
+      for (final x in it.deps)
+        if (byId.containsKey(x) && x != id) x,
+    };
     final p = parentOf(id);
     if (p != null && byId[p]!.seq) {
       final sib = kids(p);
@@ -169,9 +172,7 @@ class Graph {
       (buckets[stage[leaf]!] ??= []).add(leaf);
     }
     final keys = buckets.keys.toList()..sort();
-    final stages = [
-      for (final k in keys) buckets[k]!..sort((a, b) => treePos[a]!.compareTo(treePos[b]!)),
-    ];
+    final stages = [for (final k in keys) buckets[k]!..sort((a, b) => treePos[a]!.compareTo(treePos[b]!))];
     return Sequence(stages, stage, cyc.toList());
   }
 

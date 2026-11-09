@@ -6,7 +6,7 @@ import '../data/repository.dart';
 /// Repository와 UI 설정을 위젯 트리에 전달. Repository 변경 시 의존 위젯이 다시 그려진다.
 class AppScope extends InheritedNotifier<Repository> {
   const AppScope({super.key, required Repository repo, required this.prefs, required super.child})
-      : super(notifier: repo);
+    : super(notifier: repo);
 
   final SharedPreferences prefs;
 

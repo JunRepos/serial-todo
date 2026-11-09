@@ -15,27 +15,29 @@ class TodayPage extends StatelessWidget {
     final repo = AppScope.watch(context);
     final g = repo.graph;
     final l = g.todayLists();
-    return ListView(children: [
-      SectionTitle('오늘', trailing: '${l.today.length}개'),
-      if (l.today.isEmpty)
-        const EmptyHint('★를 눌러 오늘 할 일을 고르세요.')
-      else
-        for (final it in l.today) ItemCard(g: g, it: it),
-      SectionTitle('바로 할 수 있음', trailing: '${l.ready.length}개'),
-      if (l.ready.isEmpty)
-        const EmptyHint('바로 할 수 있는 액션이 없습니다.')
-      else
-        for (final it in l.ready) ItemCard(g: g, it: it),
-      if (l.wait.isNotEmpty) ...[
-        SectionTitle('대기 중', trailing: '${l.wait.length}개'),
-        for (final it in l.wait) ItemCard(g: g, it: it),
+    return ListView(
+      children: [
+        SectionTitle('오늘', trailing: '${l.today.length}개'),
+        if (l.today.isEmpty)
+          const EmptyHint('★를 눌러 오늘 할 일을 고르세요.')
+        else
+          for (final it in l.today) ItemCard(g: g, it: it),
+        SectionTitle('바로 할 수 있음', trailing: '${l.ready.length}개'),
+        if (l.ready.isEmpty)
+          const EmptyHint('바로 할 수 있는 액션이 없습니다.')
+        else
+          for (final it in l.ready) ItemCard(g: g, it: it),
+        if (l.wait.isNotEmpty) ...[
+          SectionTitle('대기 중', trailing: '${l.wait.length}개'),
+          for (final it in l.wait) ItemCard(g: g, it: it),
+        ],
+        if (l.recent.isNotEmpty) ...[
+          SectionTitle('최근 7일 완료', trailing: '${l.recent.length}개'),
+          for (final it in l.recent) ItemCard(g: g, it: it),
+        ],
+        const SizedBox(height: 96),
       ],
-      if (l.recent.isNotEmpty) ...[
-        SectionTitle('최근 7일 완료', trailing: '${l.recent.length}개'),
-        for (final it in l.recent) ItemCard(g: g, it: it),
-      ],
-      const SizedBox(height: 96),
-    ]);
+    );
   }
 }
 
@@ -65,47 +67,56 @@ class ItemCard extends StatelessWidget {
         onTap: () => openItemSheet(context, it.id),
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 4),
-          child: Row(children: [
-            leaf
-                ? StatusCheck(status: it.status, onTap: () => repo.toggleDone(it.id))
-                : ProgressRing(g.progress(it.id)),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(it.title,
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        decoration: done ? TextDecoration.lineThrough : null,
-                        color: done ? Tone.muted(context) : null,
-                      )),
-                  if (path.isNotEmpty)
-                    Text(path,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: 12, color: Tone.muted(context))),
-                  if (badges.isNotEmpty) ...[
-                    const SizedBox(height: 4),
-                    Wrap(spacing: 4, runSpacing: 4, children: badges),
-                  ],
-                ]),
+          child: Row(
+            children: [
+              leaf
+                  ? StatusCheck(status: it.status, onTap: () => repo.toggleDone(it.id))
+                  : ProgressRing(g.progress(it.id)),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        it.title,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          decoration: done ? TextDecoration.lineThrough : null,
+                          color: done ? Tone.muted(context) : null,
+                        ),
+                      ),
+                      if (path.isNotEmpty)
+                        Text(
+                          path,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontSize: 12, color: Tone.muted(context)),
+                        ),
+                      if (badges.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Wrap(spacing: 4, runSpacing: 4, children: badges),
+                      ],
+                    ],
+                  ),
+                ),
               ),
-            ),
-            if (!done && leaf && it.status != 'doing')
-              IconButton(
-                tooltip: '시작',
-                icon: const Icon(Icons.play_arrow_rounded),
-                onPressed: () => repo.setStatus(it.id, 'doing'),
-              ),
-            if (!done && leaf)
-              IconButton(
-                tooltip: '오늘 할 일',
-                isSelected: it.today,
-                selectedIcon: Icon(Icons.star_rounded, color: Tone.warn(context)),
-                icon: const Icon(Icons.star_outline_rounded),
-                onPressed: () => repo.toggleToday(it.id),
-              ),
-          ]),
+              if (!done && leaf && it.status != 'doing')
+                IconButton(
+                  tooltip: '시작',
+                  icon: const Icon(Icons.play_arrow_rounded),
+                  onPressed: () => repo.setStatus(it.id, 'doing'),
+                ),
+              if (!done && leaf)
+                IconButton(
+                  tooltip: '오늘 할 일',
+                  isSelected: it.today,
+                  selectedIcon: Icon(Icons.star_rounded, color: Tone.warn(context)),
+                  icon: const Icon(Icons.star_outline_rounded),
+                  onPressed: () => repo.toggleToday(it.id),
+                ),
+            ],
+          ),
         ),
       ),
     );

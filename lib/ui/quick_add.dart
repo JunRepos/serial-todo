@@ -60,17 +60,19 @@ class _QuickAddFieldState extends State<QuickAddField> {
       if (made.isNotEmpty) {
         final messenger = ScaffoldMessenger.of(context);
         messenger.hideCurrentSnackBar();
-        messenger.showSnackBar(SnackBar(
-          content: Text('${made.length}개 추가'),
-          action: SnackBarAction(
-            label: '되돌리기',
-            onPressed: () {
-              for (final it in made.where((e) => e.parentId == widget.parentId)) {
-                repo.remove(it.id);
-              }
-            },
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text('${made.length}개 추가'),
+            action: SnackBarAction(
+              label: '되돌리기',
+              onPressed: () {
+                for (final it in made.where((e) => e.parentId == widget.parentId)) {
+                  repo.remove(it.id);
+                }
+              },
+            ),
           ),
-        ));
+        );
       }
     }
     _c.clear();

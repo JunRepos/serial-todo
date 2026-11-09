@@ -34,9 +34,9 @@ class TreePageState extends State<TreePage> {
 
   /// FAB: 새 목표 입력창 열기
   void startGoal() => setState(() {
-        _addingGoal = true;
-        _addingTo = null;
-      });
+    _addingGoal = true;
+    _addingTo = null;
+  });
 
   void _toggle(String id) {
     setState(() => _collapsed.contains(id) ? _collapsed.remove(id) : _collapsed.add(id));
@@ -44,10 +44,10 @@ class TreePageState extends State<TreePage> {
   }
 
   void _startAdd(String id) => setState(() {
-        _addingTo = id;
-        _addingGoal = false;
-        if (_collapsed.remove(id)) AppScope.prefsOf(context).setStringList(_kCollapsed, _collapsed.toList());
-      });
+    _addingTo = id;
+    _addingGoal = false;
+    if (_collapsed.remove(id)) AppScope.prefsOf(context).setStringList(_kCollapsed, _collapsed.toList());
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -56,13 +56,15 @@ class TreePageState extends State<TreePage> {
     final rows = <Widget>[];
 
     if (_addingGoal || g.goals.isEmpty) {
-      rows.add(QuickAddField(
-        key: const ValueKey('add-goal'),
-        parentId: null,
-        hint: '새 목표 · 여러 줄 붙여넣기 가능',
-        autofocus: _addingGoal,
-        onClose: g.goals.isEmpty ? null : () => setState(() => _addingGoal = false),
-      ));
+      rows.add(
+        QuickAddField(
+          key: const ValueKey('add-goal'),
+          parentId: null,
+          hint: '새 목표 · 여러 줄 붙여넣기 가능',
+          autofocus: _addingGoal,
+          onClose: g.goals.isEmpty ? null : () => setState(() => _addingGoal = false),
+        ),
+      );
     }
     if (g.goals.isEmpty) {
       rows.add(const EmptyHint('목표를 하나 입력해 시작하세요.'));
@@ -70,24 +72,28 @@ class TreePageState extends State<TreePage> {
 
     void walk(Item it) {
       final open = !_collapsed.contains(it.id);
-      rows.add(_Row(
-        key: ValueKey(it.id),
-        g: g,
-        it: it,
-        open: open,
-        onToggle: () => _toggle(it.id),
-        onAdd: it.level < 2 ? () => _startAdd(it.id) : null,
-      ));
+      rows.add(
+        _Row(
+          key: ValueKey(it.id),
+          g: g,
+          it: it,
+          open: open,
+          onToggle: () => _toggle(it.id),
+          onAdd: it.level < 2 ? () => _startAdd(it.id) : null,
+        ),
+      );
       if (open) {
         g.kids(it.id).forEach(walk);
         if (_addingTo == it.id) {
-          rows.add(QuickAddField(
-            key: ValueKey('add-${it.id}'),
-            parentId: it.id,
-            indent: (it.level + 1) * 18.0,
-            hint: '${Item.levelNames[it.level + 1]} 추가 · Enter 계속',
-            onClose: () => setState(() => _addingTo = null),
-          ));
+          rows.add(
+            QuickAddField(
+              key: ValueKey('add-${it.id}'),
+              parentId: it.id,
+              indent: (it.level + 1) * 18.0,
+              hint: '${Item.levelNames[it.level + 1]} 추가 · Enter 계속',
+              onClose: () => setState(() => _addingTo = null),
+            ),
+          );
         }
       }
     }
@@ -131,53 +137,60 @@ class _Row extends StatelessWidget {
         constraints: const BoxConstraints(minHeight: 48),
         child: Padding(
           padding: EdgeInsets.only(left: 4.0 + it.level * 18, right: 4),
-          child: Row(children: [
-            SizedBox(
-              width: 32,
-              child: leaf
-                  ? null
-                  : IconButton(
-                      padding: EdgeInsets.zero,
-                      visualDensity: VisualDensity.compact,
-                      tooltip: open ? '접기' : '펼치기',
-                      icon: AnimatedRotation(
-                        turns: open ? .25 : 0,
-                        duration: const Duration(milliseconds: 150),
-                        child: const Icon(Icons.chevron_right),
+          child: Row(
+            children: [
+              SizedBox(
+                width: 32,
+                child: leaf
+                    ? null
+                    : IconButton(
+                        padding: EdgeInsets.zero,
+                        visualDensity: VisualDensity.compact,
+                        tooltip: open ? '접기' : '펼치기',
+                        icon: AnimatedRotation(
+                          turns: open ? .25 : 0,
+                          duration: const Duration(milliseconds: 150),
+                          child: const Icon(Icons.chevron_right),
+                        ),
+                        onPressed: onToggle,
                       ),
-                      onPressed: onToggle,
-                    ),
-            ),
-            leaf
-                ? StatusCheck(status: it.status, blocked: blocked, onTap: () => repo.toggleDone(it.id))
-                : ProgressRing(g.progress(it.id)),
-            const SizedBox(width: 4),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Row(children: [
-                    if (it.today && !done)
-                      Padding(
-                        padding: const EdgeInsets.only(right: 4),
-                        child: Icon(Icons.star_rounded, size: 16, color: Tone.warn(context)),
+              ),
+              leaf
+                  ? StatusCheck(status: it.status, blocked: blocked, onTap: () => repo.toggleDone(it.id))
+                  : ProgressRing(g.progress(it.id)),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          if (it.today && !done)
+                            Padding(
+                              padding: const EdgeInsets.only(right: 4),
+                              child: Icon(Icons.star_rounded, size: 16, color: Tone.warn(context)),
+                            ),
+                          Flexible(child: Text(it.title, style: titleStyle)),
+                        ],
                       ),
-                    Flexible(child: Text(it.title, style: titleStyle)),
-                  ]),
-                  if (badges.isNotEmpty) ...[
-                    const SizedBox(height: 4),
-                    Wrap(spacing: 4, runSpacing: 4, children: badges),
-                  ],
-                ]),
+                      if (badges.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Wrap(spacing: 4, runSpacing: 4, children: badges),
+                      ],
+                    ],
+                  ),
+                ),
               ),
-            ),
-            if (onAdd != null)
-              IconButton(
-                tooltip: '${Item.levelNames[it.level + 1]} 추가',
-                icon: const Icon(Icons.add),
-                onPressed: onAdd,
-              ),
-          ]),
+              if (onAdd != null)
+                IconButton(
+                  tooltip: '${Item.levelNames[it.level + 1]} 추가',
+                  icon: const Icon(Icons.add),
+                  onPressed: onAdd,
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -185,10 +198,20 @@ class _Row extends StatelessWidget {
     if (leaf && it.level > 0) {
       row = Dismissible(
         key: ValueKey('sw-${it.id}'),
-        background: _swipeBg(context, Alignment.centerLeft, done ? Icons.undo : Icons.check, scheme.primary,
-            done ? '되돌리기' : '완료'),
-        secondaryBackground: _swipeBg(context, Alignment.centerRight, Icons.star_rounded, Tone.warn(context),
-            it.today ? '★ 해제' : '오늘 ★'),
+        background: _swipeBg(
+          context,
+          Alignment.centerLeft,
+          done ? Icons.undo : Icons.check,
+          scheme.primary,
+          done ? '되돌리기' : '완료',
+        ),
+        secondaryBackground: _swipeBg(
+          context,
+          Alignment.centerRight,
+          Icons.star_rounded,
+          Tone.warn(context),
+          it.today ? '★ 해제' : '오늘 ★',
+        ),
         confirmDismiss: (dir) async {
           if (dir == DismissDirection.startToEnd) {
             repo.toggleDone(it.id);
@@ -204,7 +227,14 @@ class _Row extends StatelessWidget {
   }
 
   Widget _swipeBg(BuildContext context, Alignment a, IconData icon, Color c, String label) {
-    final children = [Icon(icon, color: Colors.white), const SizedBox(width: 8), Text(label, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600))];
+    final children = [
+      Icon(icon, color: Colors.white),
+      const SizedBox(width: 8),
+      Text(
+        label,
+        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+      ),
+    ];
     return Container(
       color: c,
       alignment: a,

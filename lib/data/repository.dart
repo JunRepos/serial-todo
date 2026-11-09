@@ -120,11 +120,11 @@ class Repository extends ChangeNotifier {
           },
         )
         .subscribe((status, [err]) {
-      if (status == RealtimeSubscribeStatus.subscribed) {
-        // 끊겼다 다시 붙으면 그 사이 변경분을 받는다
-        if (_pulledOnce) unawaited(refresh());
-      }
-    });
+          if (status == RealtimeSubscribeStatus.subscribed) {
+            // 끊겼다 다시 붙으면 그 사이 변경분을 받는다
+            if (_pulledOnce) unawaited(refresh());
+          }
+        });
   }
 
   Future<void> _pull() async {
@@ -135,7 +135,7 @@ class Repository extends ChangeNotifier {
           : DateTime.parse(_cursor!).subtract(const Duration(seconds: 10)).toUtc().toIso8601String();
       const page = 1000;
       var changed = false;
-      for (var from = 0;; from += page) {
+      for (var from = 0; ; from += page) {
         var q = _client.from('items').select();
         if (since != null) q = q.gt('synced_at', since);
         final rows = await q.order('synced_at').order('id').range(from, from + page - 1);
@@ -268,6 +268,18 @@ class Repository extends ChangeNotifier {
   }
 
   Item? operator [](String id) => graph[id];
+
+  /// 네트워크 없이 항목만 채운다 (위젯 테스트용)
+  @visibleForTesting
+  void debugLoad(String uid, List<Item> items) {
+    _uid = uid;
+    _items
+      ..clear()
+      ..addAll({for (final i in items) i.id: i});
+    sync = SyncState.synced;
+    graph = Graph(_items.values);
+    notifyListeners();
+  }
 
   // ---------------------------------------------------------------- 변경 API
 
@@ -427,24 +439,17 @@ class Repository extends ChangeNotifier {
 
   void _seedSample() {
     _prefs.setBool(_kSeeded, true);
-    final g = Item(
+    final g = Item(id: newId(), title: '신제품 기획서 작성', priority: 1, note: '예시 목표입니다. 필요 없으면 편집 → 삭제.', sort: 1);
+    Item mk(Item parent, String title, double sort, {bool seq = false, List<String>? deps, bool today = false}) => Item(
       id: newId(),
-      title: '신제품 기획서 작성',
-      priority: 1,
-      note: '예시 목표입니다. 필요 없으면 편집 → 삭제.',
-      sort: 1,
+      parentId: parent.id,
+      level: parent.level + 1,
+      sort: sort,
+      title: title,
+      seq: seq,
+      deps: deps,
+      today: today,
     );
-    Item mk(Item parent, String title, double sort, {bool seq = false, List<String>? deps, bool today = false}) =>
-        Item(
-          id: newId(),
-          parentId: parent.id,
-          level: parent.level + 1,
-          sort: sort,
-          title: title,
-          seq: seq,
-          deps: deps,
-          today: today,
-        );
     final p1 = mk(g, '시장 조사 및 경쟁사 분석', 1);
     final a1 = mk(p1, '경쟁사 A사 홈페이지 분석 및 캡처', 1, today: true);
     final a2 = mk(p1, '경쟁사 B사 제품 가격표 정리', 2);

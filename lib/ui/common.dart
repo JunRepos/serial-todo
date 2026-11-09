@@ -15,10 +15,7 @@ class Badge2 extends StatelessWidget {
     final c = color ?? Tone.muted(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: filled ? c : c.withValues(alpha: .12),
-        borderRadius: BorderRadius.circular(6),
-      ),
+      decoration: BoxDecoration(color: filled ? c : c.withValues(alpha: .12), borderRadius: BorderRadius.circular(6)),
       child: Text(
         text,
         maxLines: 1,
@@ -96,14 +93,14 @@ class StatusCheck extends StatelessWidget {
               child: done
                   ? Icon(Icons.check, size: 15, color: scheme.onPrimary)
                   : doing
-                      ? Center(
-                          child: Container(
-                            width: 8,
-                            height: 8,
-                            decoration: BoxDecoration(color: scheme.primary, shape: BoxShape.circle),
-                          ),
-                        )
-                      : null,
+                  ? Center(
+                      child: Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(color: scheme.primary, shape: BoxShape.circle),
+                      ),
+                    )
+                  : null,
             ),
           ),
         ),
@@ -134,7 +131,10 @@ class ProgressRing extends StatelessWidget {
                 strokeWidth: 3,
                 backgroundColor: scheme.outlineVariant.withValues(alpha: .5),
               ),
-              Text('$pct', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: scheme.onSurfaceVariant)),
+              Text(
+                '$pct',
+                style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: scheme.onSurfaceVariant),
+              ),
             ],
           ),
         ),
@@ -151,21 +151,24 @@ class ProgressBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return Row(mainAxisSize: MainAxisSize.min, children: [
-      SizedBox(
-        width: width,
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(3),
-          child: LinearProgressIndicator(
-            value: pct / 100,
-            minHeight: 5,
-            backgroundColor: scheme.outlineVariant.withValues(alpha: .5),
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(
+          width: width,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(3),
+            child: LinearProgressIndicator(
+              value: pct / 100,
+              minHeight: 5,
+              backgroundColor: scheme.outlineVariant.withValues(alpha: .5),
+            ),
           ),
         ),
-      ),
-      const SizedBox(width: 6),
-      Text('$pct%', style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
-    ]);
+        const SizedBox(width: 6),
+        Text('$pct%', style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
+      ],
+    );
   }
 }
 
@@ -179,13 +182,19 @@ class EmptyHint extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 16),
-      child: Column(children: [
-        Text(text, textAlign: TextAlign.center, style: TextStyle(color: Tone.muted(context))),
-        if (action != null) ...[
-          const SizedBox(height: 10),
-          FilledButton.tonal(onPressed: onAction, child: Text(action!)),
+      child: Column(
+        children: [
+          Text(
+            text,
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Tone.muted(context)),
+          ),
+          if (action != null) ...[
+            const SizedBox(height: 10),
+            FilledButton.tonal(onPressed: onAction, child: Text(action!)),
+          ],
         ],
-      ]),
+      ),
     );
   }
 }
@@ -199,13 +208,15 @@ class SectionTitle extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 6),
-      child: Row(children: [
-        Text(title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
-        if (trailing != null) ...[
-          const SizedBox(width: 8),
-          Text(trailing!, style: TextStyle(color: Tone.muted(context), fontSize: 13)),
+      child: Row(
+        children: [
+          Text(title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+          if (trailing != null) ...[
+            const SizedBox(width: 8),
+            Text(trailing!, style: TextStyle(color: Tone.muted(context), fontSize: 13)),
+          ],
         ],
-      ]),
+      ),
     );
   }
 }

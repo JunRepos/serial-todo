@@ -16,8 +16,8 @@ class Item {
     this.doneAt,
     DateTime? updatedAt,
     this.deleted = false,
-  })  : deps = deps ?? <String>[],
-        updatedAt = updatedAt ?? DateTime.now().toUtc();
+  }) : deps = deps ?? <String>[],
+       updatedAt = updatedAt ?? DateTime.now().toUtc();
 
   final String id;
   String? parentId;
@@ -51,40 +51,40 @@ class Item {
   void touch() => updatedAt = DateTime.now().toUtc();
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'parent_id': parentId,
-        'level': level,
-        'sort': sort,
-        'title': title,
-        'status': status,
-        'priority': priority,
-        'due': due,
-        'deps': deps,
-        'seq': seq,
-        'today': today,
-        'note': note,
-        'done_at': doneAt?.toUtc().toIso8601String(),
-        'updated_at': updatedAt.toUtc().toIso8601String(),
-        'deleted': deleted,
-      };
+    'id': id,
+    'parent_id': parentId,
+    'level': level,
+    'sort': sort,
+    'title': title,
+    'status': status,
+    'priority': priority,
+    'due': due,
+    'deps': deps,
+    'seq': seq,
+    'today': today,
+    'note': note,
+    'done_at': doneAt?.toUtc().toIso8601String(),
+    'updated_at': updatedAt.toUtc().toIso8601String(),
+    'deleted': deleted,
+  };
 
   factory Item.fromJson(Map<String, dynamic> j) => Item(
-        id: j['id'] as String,
-        parentId: j['parent_id'] as String?,
-        level: (j['level'] as num?)?.toInt() ?? 0,
-        sort: (j['sort'] as num?)?.toDouble() ?? 0,
-        title: (j['title'] as String?) ?? '',
-        status: (j['status'] as String?) ?? 'todo',
-        priority: (j['priority'] as num?)?.toInt() ?? 2,
-        due: _date(j['due']),
-        deps: (j['deps'] as List?)?.map((e) => e.toString()).toList() ?? [],
-        seq: j['seq'] == true,
-        today: j['today'] == true,
-        note: (j['note'] as String?) ?? '',
-        doneAt: _ts(j['done_at']),
-        updatedAt: _ts(j['updated_at']),
-        deleted: j['deleted'] == true,
-      );
+    id: j['id'] as String,
+    parentId: j['parent_id'] as String?,
+    level: (j['level'] as num?)?.toInt() ?? 0,
+    sort: (j['sort'] as num?)?.toDouble() ?? 0,
+    title: (j['title'] as String?) ?? '',
+    status: (j['status'] as String?) ?? 'todo',
+    priority: (j['priority'] as num?)?.toInt() ?? 2,
+    due: _date(j['due']),
+    deps: (j['deps'] as List?)?.map((e) => e.toString()).toList() ?? [],
+    seq: j['seq'] == true,
+    today: j['today'] == true,
+    note: (j['note'] as String?) ?? '',
+    doneAt: _ts(j['done_at']),
+    updatedAt: _ts(j['updated_at']),
+    deleted: j['deleted'] == true,
+  );
 
   static String? _date(dynamic v) {
     if (v == null) return null;

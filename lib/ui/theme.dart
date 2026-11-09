@@ -42,7 +42,8 @@ ThemeData buildTheme(Brightness b) {
 
 /// 상태 배지 색
 class Tone {
-  static Color warn(BuildContext c) => Theme.of(c).brightness == Brightness.dark ? const Color(0xFFE6B45A) : const Color(0xFF9A6200);
+  static Color warn(BuildContext c) =>
+      Theme.of(c).brightness == Brightness.dark ? const Color(0xFFE6B45A) : const Color(0xFF9A6200);
   static Color danger(BuildContext c) => Theme.of(c).colorScheme.error;
   static Color muted(BuildContext c) => Theme.of(c).colorScheme.onSurfaceVariant;
 }

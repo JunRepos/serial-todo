@@ -118,14 +118,13 @@ class _ShellState extends State<Shell> {
   @override
   Widget build(BuildContext context) {
     final wide = MediaQuery.sizeOf(context).width >= 760;
-    final pages = [
-      TreePage(key: _treeKey),
-      const SequencePage(),
-      const TodayPage(),
-      CalendarPage(key: _calKey),
-    ];
+    final pages = [TreePage(key: _treeKey), const SequencePage(), const TodayPage(), CalendarPage(key: _calKey)];
     final body = IndexedStack(index: _tab, children: pages);
-    final fabLabel = switch (_tab) { 0 || 1 => '목표', 2 => '오늘 할 일', _ => '마감 항목' };
+    final fabLabel = switch (_tab) {
+      0 || 1 => '목표',
+      2 => '오늘 할 일',
+      _ => '마감 항목',
+    };
 
     return Scaffold(
       appBar: AppBar(
@@ -148,25 +147,35 @@ class _ShellState extends State<Shell> {
               ],
             ),
       body: wide
-          ? Row(children: [
-              NavigationRail(
-                selectedIndex: _tab,
-                onDestinationSelected: _setTab,
-                labelType: NavigationRailLabelType.all,
-                destinations: [
-                  for (final d in _dests)
-                    NavigationRailDestination(icon: Icon(d.$1), selectedIcon: Icon(d.$2), label: Text(d.$3)),
-                ],
-              ),
-              const VerticalDivider(width: 1),
-              Expanded(child: Align(alignment: Alignment.topCenter, child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 860), child: body))),
-            ])
+          ? Row(
+              children: [
+                NavigationRail(
+                  selectedIndex: _tab,
+                  onDestinationSelected: _setTab,
+                  labelType: NavigationRailLabelType.all,
+                  destinations: [
+                    for (final d in _dests)
+                      NavigationRailDestination(icon: Icon(d.$1), selectedIcon: Icon(d.$2), label: Text(d.$3)),
+                  ],
+                ),
+                const VerticalDivider(width: 1),
+                Expanded(
+                  child: Align(
+                    alignment: Alignment.topCenter,
+                    child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 860), child: body),
+                  ),
+                ),
+              ],
+            )
           : body,
     );
   }
 
   Widget _menu(BuildContext context) {
-    final email = Supabase.instance.client.auth.currentUser?.email ?? '';
+    String email = '';
+    try {
+      email = Supabase.instance.client.auth.currentUser?.email ?? '';
+    } catch (_) {} // 테스트 등 Supabase 미초기화
     return PopupMenuButton<String>(
       tooltip: '메뉴',
       onSelected: (v) {
@@ -197,11 +206,14 @@ class _SyncChip extends StatelessWidget {
     final label = repo.sync == SyncState.synced && repo.pendingCount > 0 ? '대기 ${repo.pendingCount}건' : text;
     return Padding(
       padding: const EdgeInsets.only(right: 4),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [
-        Icon(icon, size: 16, color: color),
-        const SizedBox(width: 4),
-        Text(label, style: TextStyle(fontSize: 12, color: color)),
-      ]),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: color),
+          const SizedBox(width: 4),
+          Text(label, style: TextStyle(fontSize: 12, color: color)),
+        ],
+      ),
     );
   }
 }

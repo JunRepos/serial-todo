@@ -71,50 +71,59 @@ class _AuthPageState extends State<AuthPage> {
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 380),
               child: AutofillGroup(
-                child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                  Icon(Icons.account_tree_rounded, size: 44, color: scheme.primary),
-                  const SizedBox(height: 12),
-                  const Text('계열화 To-Do',
-                      textAlign: TextAlign.center, style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700)),
-                  const SizedBox(height: 4),
-                  Text('목표 → 프로젝트 → 액션',
-                      textAlign: TextAlign.center, style: TextStyle(color: Tone.muted(context))),
-                  const SizedBox(height: 32),
-                  TextField(
-                    controller: _email,
-                    keyboardType: TextInputType.emailAddress,
-                    autofillHints: const [AutofillHints.email],
-                    textInputAction: TextInputAction.next,
-                    decoration: const InputDecoration(labelText: '이메일'),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _pw,
-                    obscureText: true,
-                    autofillHints: [_signup ? AutofillHints.newPassword : AutofillHints.password],
-                    textInputAction: TextInputAction.done,
-                    onSubmitted: (_) => _go(),
-                    decoration: const InputDecoration(labelText: '비밀번호'),
-                  ),
-                  if (_error != null) ...[
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Icon(Icons.account_tree_rounded, size: 44, color: scheme.primary),
                     const SizedBox(height: 12),
-                    Text(_error!, style: TextStyle(color: scheme.error)),
+                    const Text(
+                      '계열화 To-Do',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '목표 → 프로젝트 → 액션',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Tone.muted(context)),
+                    ),
+                    const SizedBox(height: 32),
+                    TextField(
+                      controller: _email,
+                      keyboardType: TextInputType.emailAddress,
+                      autofillHints: const [AutofillHints.email],
+                      textInputAction: TextInputAction.next,
+                      decoration: const InputDecoration(labelText: '이메일'),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _pw,
+                      obscureText: true,
+                      autofillHints: [_signup ? AutofillHints.newPassword : AutofillHints.password],
+                      textInputAction: TextInputAction.done,
+                      onSubmitted: (_) => _go(),
+                      decoration: const InputDecoration(labelText: '비밀번호'),
+                    ),
+                    if (_error != null) ...[
+                      const SizedBox(height: 12),
+                      Text(_error!, style: TextStyle(color: scheme.error)),
+                    ],
+                    const SizedBox(height: 20),
+                    FilledButton(
+                      style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+                      onPressed: _busy ? null : _go,
+                      child: _busy
+                          ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                          : Text(_signup ? '가입하고 시작' : '로그인'),
+                    ),
+                    const SizedBox(height: 8),
+                    TextButton(
+                      style: TextButton.styleFrom(minimumSize: const Size.fromHeight(44)),
+                      onPressed: _busy ? null : () => setState(() => _signup = !_signup),
+                      child: Text(_signup ? '이미 계정이 있어요 · 로그인' : '처음이에요 · 가입'),
+                    ),
                   ],
-                  const SizedBox(height: 20),
-                  FilledButton(
-                    style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-                    onPressed: _busy ? null : _go,
-                    child: _busy
-                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                        : Text(_signup ? '가입하고 시작' : '로그인'),
-                  ),
-                  const SizedBox(height: 8),
-                  TextButton(
-                    style: TextButton.styleFrom(minimumSize: const Size.fromHeight(44)),
-                    onPressed: _busy ? null : () => setState(() => _signup = !_signup),
-                    child: Text(_signup ? '이미 계정이 있어요 · 로그인' : '처음이에요 · 가입'),
-                  ),
-                ]),
+                ),
               ),
             ),
           ),
