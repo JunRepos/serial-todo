@@ -29,6 +29,14 @@ jobs:
           flutter-version: '3.44.8'
           cache: true
 
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/wrapper
+            ~/.gradle/caches
+          key: gradle-${{ runner.os }}-${{ hashFiles('android/gradle/wrapper/gradle-wrapper.properties', 'android/**/*.gradle.kts', 'pubspec.lock') }}
+          restore-keys: gradle-${{ runner.os }}-
+
       - name: Restore signing key
         env:
           KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
@@ -49,12 +57,20 @@ jobs:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-        run: >
-          flutter build apk --release
-          --build-number=${{ github.run_number }}
-          --build-name=1.0.${{ github.run_number }}
-          --dart-define=SUPABASE_URL=${{ secrets.SUPABASE_URL }}
-          --dart-define=SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          # Gradle 배포 파일 다운로드가 가끔 504로 실패하므로 재시도
+          for i in 1 2 3; do
+            flutter build apk --release \
+              --build-number=${{ github.run_number }} \
+              --build-name=1.0.${{ github.run_number }} \
+              --dart-define=SUPABASE_URL="$SUPABASE_URL" \
+              --dart-define=SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY" && exit 0
+            echo "::warning::빌드 실패 ($i/3), 30초 후 재시도"
+            sleep 30
+          done
+          exit 1
 
       - name: Rename APK
         run: cp build/app/outputs/flutter-apk/app-release.apk serial-todo.apk

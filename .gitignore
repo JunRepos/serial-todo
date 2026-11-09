@@ -51,3 +51,4 @@ app.*.map.json
 key.properties
 supabase/.temp/
 supabase/.branches/
+.claude/

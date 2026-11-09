@@ -31,7 +31,7 @@ class Repository extends ChangeNotifier {
   String? _cursor; // 서버 synced_at 기준 마지막으로 받은 시각
   RealtimeChannel? _channel;
   StreamSubscription? _connSub;
-  Timer? _pushTimer, _retryTimer, _cacheTimer;
+  Timer? _pushTimer, _retryTimer;
   bool _pushing = false;
   bool _pulledOnce = false;
 
@@ -50,8 +50,9 @@ class Repository extends ChangeNotifier {
 
   Future<void> start(String uid) async {
     if (_uid == uid) return;
-    await stop();
-    _uid = uid;
+    _uid = uid; // await 전에 먼저 표시해 중복 시작을 막는다
+    await _teardown();
+    if (_uid != uid) return;
     _items.clear();
     _pending.clear();
     _pulledOnce = false;
@@ -74,16 +75,18 @@ class Repository extends ChangeNotifier {
   }
 
   Future<void> stop() async {
+    _uid = null;
+    await _teardown();
+  }
+
+  Future<void> _teardown() async {
     _pushTimer?.cancel();
     _retryTimer?.cancel();
-    _cacheTimer?.cancel();
     await _connSub?.cancel();
     _connSub = null;
-    if (_channel != null) {
-      await _client.removeChannel(_channel!);
-      _channel = null;
-    }
-    _uid = null;
+    final ch = _channel;
+    _channel = null;
+    if (ch != null) await _client.removeChannel(ch);
   }
 
   @override
@@ -242,12 +245,8 @@ class Repository extends ChangeNotifier {
 
   void _savePending() => _prefs.setStringList(_kPending, _pending.toList());
 
-  void _saveCache() {
-    _cacheTimer?.cancel();
-    _cacheTimer = Timer(const Duration(milliseconds: 150), () {
-      _prefs.setString(_kItems, jsonEncode(_items.values.map((e) => e.toJson()).toList()));
-    });
-  }
+  // 앱이 바로 꺼져도 잃지 않도록 즉시 저장한다
+  void _saveCache() => _prefs.setString(_kItems, jsonEncode(_items.values.map((e) => e.toJson()).toList()));
 
   void _rebuild({bool save = true, bool push = true}) {
     graph = Graph(_items.values);
