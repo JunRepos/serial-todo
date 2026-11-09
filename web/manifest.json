@@ -1,0 +1,35 @@
+{
+    "name": "계열화 To-Do",
+    "short_name": "계열화 To-Do",
+    "start_url": ".",
+    "display": "standalone",
+    "background_color": "#FBFBF9",
+    "theme_color": "#2E5B4E",
+    "description": "목표 → 프로젝트 → 액션 할 일",
+    "orientation": "portrait-primary",
+    "prefer_related_applications": false,
+    "icons": [
+        {
+            "src": "icons/Icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "icons/Icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        },
+        {
+            "src": "icons/Icon-maskable-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "maskable"
+        },
+        {
+            "src": "icons/Icon-maskable-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "maskable"
+        }
+    ]
+}

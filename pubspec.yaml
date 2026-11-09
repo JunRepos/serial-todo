@@ -1,0 +1,37 @@
+name: serial_todo
+description: "계열화 To-Do — 목표 → 프로젝트 → 액션, 선행 관계로 실행 순서를 계산하는 할 일 앱"
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  supabase_flutter: ^2.18.3
+  shared_preferences: ^2.5.6
+  home_widget: ^0.10.0
+  uuid: ^4.6.0
+  intl: ^0.20.2
+  connectivity_plus: ^7.3.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+  fonts:
+    - family: Pretendard
+      fonts:
+        - asset: assets/fonts/Pretendard-Regular.otf
+          weight: 400
+        - asset: assets/fonts/Pretendard-SemiBold.otf
+          weight: 600
+        - asset: assets/fonts/Pretendard-Bold.otf
+          weight: 700
