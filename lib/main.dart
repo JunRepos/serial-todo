@@ -43,7 +43,7 @@ class SerialTodoApp extends StatefulWidget {
 class _SerialTodoAppState extends State<SerialTodoApp> with WidgetsBindingObserver {
   late final StreamSubscription<AuthState> _authSub;
   StreamSubscription<Uri?>? _widgetSub;
-  final _openItem = ValueNotifier<String?>(null);
+  final _widgetUri = ValueNotifier<Uri?>(null);
   Session? _session;
 
   @override
@@ -79,8 +79,7 @@ class _SerialTodoAppState extends State<SerialTodoApp> with WidgetsBindingObserv
   }
 
   void _onWidgetUri(Uri? uri) {
-    final id = WidgetSync.itemIdFromUri(uri);
-    if (id != null) _openItem.value = id;
+    if (uri != null && (uri.host == 'open' || uri.host == 'add')) _widgetUri.value = uri;
   }
 
   @override
@@ -112,7 +111,7 @@ class _SerialTodoAppState extends State<SerialTodoApp> with WidgetsBindingObserv
         locale: const Locale('ko'),
         supportedLocales: const [Locale('ko'), Locale('en')],
         localizationsDelegates: GlobalMaterialLocalizations.delegates,
-        home: _session == null ? const AuthPage() : Shell(openItemId: _openItem),
+        home: _session == null ? const AuthPage() : Shell(widgetUri: _widgetUri),
       ),
     );
   }

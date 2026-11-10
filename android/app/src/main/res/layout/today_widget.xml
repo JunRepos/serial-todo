@@ -1,231 +1,674 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- 홈 화면 "오늘" 위젯. 슬롯은 Kotlin에서 데이터와 위젯 크기에 맞게 보이고 숨긴다. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@android:id/background"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@drawable/widget_bg"
     android:orientation="vertical"
-    android:paddingStart="14dp"
-    android:paddingEnd="6dp"
-    android:paddingTop="10dp"
-    android:paddingBottom="6dp">
+    android:padding="12dp">
 
+    <!-- 머리: 오늘 · 남은 개수 · 날짜 · 추가 -->
     <LinearLayout
         android:id="@+id/header"
         android:layout_width="match_parent"
-        android:layout_height="36dp"
-        android:gravity="center_vertical"
-        android:orientation="horizontal">
-        <TextView
-            android:id="@+id/header_title"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="오늘"
-            android:textColor="@color/widget_text"
-            android:textSize="16sp"
-            android:textStyle="bold" />
-        <TextView
-            android:id="@+id/header_count"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="6dp"
-            android:textColor="@color/widget_brand"
-            android:textSize="14sp"
-            android:textStyle="bold" />
-    </LinearLayout>
-
-    <TextView
-        android:id="@+id/empty"
-        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:paddingTop="8dp"
-        android:text="할 일이 없습니다"
-        android:textColor="@color/widget_muted"
-        android:textSize="13sp"
-        android:visibility="gone" />
-
-    <LinearLayout
-        android:id="@+id/row0"
-        android:layout_width="match_parent"
-        android:layout_height="44dp"
         android:gravity="center_vertical"
+        android:minHeight="40dp"
         android:orientation="horizontal"
-        android:visibility="gone">
-        <TextView
-            android:id="@+id/title0"
+        android:paddingStart="4dp">
+        <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:ellipsize="end"
-            android:maxLines="1"
+            android:orientation="vertical">
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/widget_title"
+                    android:textColor="@color/widget_text"
+                    android:textSize="18sp"
+                    android:textStyle="bold" />
+                <TextView
+                    android:id="@+id/count"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:background="@drawable/widget_chip_brand"
+                    android:paddingStart="7dp"
+                    android:paddingTop="1dp"
+                    android:paddingEnd="7dp"
+                    android:paddingBottom="1dp"
+                    android:textColor="@color/widget_brand"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:visibility="gone" />
+            </LinearLayout>
+            <TextView
+                android:id="@+id/date"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="1dp"
+                android:maxLines="1"
+                android:textColor="@color/widget_muted"
+                android:textSize="12sp" />
+        </LinearLayout>
+        <FrameLayout
+            android:id="@+id/add"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="@drawable/widget_round_btn"
+            android:contentDescription="@string/widget_add">
+            <ImageView
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:layout_gravity="center"
+                android:importantForAccessibility="no"
+                android:src="@drawable/widget_ic_add" />
+        </FrameLayout>
+    </LinearLayout>
+
+    <!-- 오늘 진행률: 오늘 끝낸 것 / (오늘 끝낸 것 + 남은 ★) -->
+    <ProgressBar
+        android:id="@+id/progress"
+        style="@android:style/Widget.ProgressBar.Horizontal"
+        android:layout_width="match_parent"
+        android:layout_height="4dp"
+        android:layout_marginStart="4dp"
+        android:layout_marginTop="8dp"
+        android:layout_marginEnd="4dp"
+        android:layout_marginBottom="2dp"
+        android:max="100"
+        android:progressDrawable="@drawable/widget_progress"
+        android:visibility="gone" />
+
+    <!-- 비었을 때 -->
+    <LinearLayout
+        android:id="@+id/empty"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:visibility="gone">
+        <TextView
+            android:id="@+id/empty_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center"
             android:textColor="@color/widget_text"
-            android:textSize="14sp" />
+            android:textSize="15sp"
+            android:textStyle="bold" />
+        <TextView
+            android:id="@+id/empty_sub"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:gravity="center"
+            android:textColor="@color/widget_muted"
+            android:textSize="12sp" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/label0"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="6dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="2dp"
+        android:text="@string/widget_next"
+        android:textColor="@color/widget_muted"
+        android:textSize="11sp"
+        android:textStyle="bold"
+        android:visibility="gone" />
+    <LinearLayout
+        android:id="@+id/row0"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:background="@drawable/widget_tile"
+        android:gravity="center_vertical"
+        android:minHeight="48dp"
+        android:orientation="horizontal"
+        android:paddingEnd="10dp"
+        android:visibility="gone">
+        <FrameLayout
+            android:id="@+id/check0"
+            android:layout_width="44dp"
+            android:layout_height="48dp"
+            android:contentDescription="@string/widget_done">
+            <ImageView
+                android:id="@+id/check_img0"
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:layout_gravity="center"
+                android:importantForAccessibility="no"
+                android:src="@drawable/widget_ic_check" />
+        </FrameLayout>
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:paddingTop="6dp"
+            android:paddingBottom="6dp">
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+                <ImageView
+                    android:id="@+id/star0"
+                    android:layout_width="14dp"
+                    android:layout_height="14dp"
+                    android:layout_marginEnd="4dp"
+                    android:importantForAccessibility="no"
+                    android:src="@drawable/widget_ic_star"
+                    android:visibility="gone" />
+                <TextView
+                    android:id="@+id/title0"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:textColor="@color/widget_text"
+                    android:textSize="14sp" />
+            </LinearLayout>
+            <TextView
+                android:id="@+id/sub0"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="1dp"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textColor="@color/widget_muted"
+                android:textSize="11sp"
+                android:visibility="gone" />
+        </LinearLayout>
         <TextView
             android:id="@+id/due0"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="6dp"
+            android:background="@drawable/widget_chip_chip"
+            android:paddingStart="6dp"
+            android:paddingTop="2dp"
+            android:paddingEnd="6dp"
+            android:paddingBottom="2dp"
             android:textColor="@color/widget_muted"
-            android:textSize="12sp"
+            android:textSize="11sp"
+            android:textStyle="bold"
             android:visibility="gone" />
-        <FrameLayout
-            android:id="@+id/check0"
-            android:layout_width="44dp"
-            android:layout_height="44dp"
-            android:contentDescription="완료">
-            <ImageView
-                android:layout_width="20dp"
-                android:layout_height="20dp"
-                android:layout_gravity="center"
-                android:src="@drawable/widget_check" />
-        </FrameLayout>
     </LinearLayout>
 
+    <TextView
+        android:id="@+id/label1"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="6dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="2dp"
+        android:text="@string/widget_next"
+        android:textColor="@color/widget_muted"
+        android:textSize="11sp"
+        android:textStyle="bold"
+        android:visibility="gone" />
     <LinearLayout
         android:id="@+id/row1"
         android:layout_width="match_parent"
-        android:layout_height="44dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:background="@drawable/widget_tile"
         android:gravity="center_vertical"
+        android:minHeight="48dp"
         android:orientation="horizontal"
+        android:paddingEnd="10dp"
         android:visibility="gone">
-        <TextView
-            android:id="@+id/title1"
+        <FrameLayout
+            android:id="@+id/check1"
+            android:layout_width="44dp"
+            android:layout_height="48dp"
+            android:contentDescription="@string/widget_done">
+            <ImageView
+                android:id="@+id/check_img1"
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:layout_gravity="center"
+                android:importantForAccessibility="no"
+                android:src="@drawable/widget_ic_check" />
+        </FrameLayout>
+        <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:ellipsize="end"
-            android:maxLines="1"
-            android:textColor="@color/widget_text"
-            android:textSize="14sp" />
+            android:orientation="vertical"
+            android:paddingTop="6dp"
+            android:paddingBottom="6dp">
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+                <ImageView
+                    android:id="@+id/star1"
+                    android:layout_width="14dp"
+                    android:layout_height="14dp"
+                    android:layout_marginEnd="4dp"
+                    android:importantForAccessibility="no"
+                    android:src="@drawable/widget_ic_star"
+                    android:visibility="gone" />
+                <TextView
+                    android:id="@+id/title1"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:textColor="@color/widget_text"
+                    android:textSize="14sp" />
+            </LinearLayout>
+            <TextView
+                android:id="@+id/sub1"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="1dp"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textColor="@color/widget_muted"
+                android:textSize="11sp"
+                android:visibility="gone" />
+        </LinearLayout>
         <TextView
             android:id="@+id/due1"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="6dp"
+            android:background="@drawable/widget_chip_chip"
+            android:paddingStart="6dp"
+            android:paddingTop="2dp"
+            android:paddingEnd="6dp"
+            android:paddingBottom="2dp"
             android:textColor="@color/widget_muted"
-            android:textSize="12sp"
+            android:textSize="11sp"
+            android:textStyle="bold"
             android:visibility="gone" />
-        <FrameLayout
-            android:id="@+id/check1"
-            android:layout_width="44dp"
-            android:layout_height="44dp"
-            android:contentDescription="완료">
-            <ImageView
-                android:layout_width="20dp"
-                android:layout_height="20dp"
-                android:layout_gravity="center"
-                android:src="@drawable/widget_check" />
-        </FrameLayout>
     </LinearLayout>
 
+    <TextView
+        android:id="@+id/label2"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="6dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="2dp"
+        android:text="@string/widget_next"
+        android:textColor="@color/widget_muted"
+        android:textSize="11sp"
+        android:textStyle="bold"
+        android:visibility="gone" />
     <LinearLayout
         android:id="@+id/row2"
         android:layout_width="match_parent"
-        android:layout_height="44dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:background="@drawable/widget_tile"
         android:gravity="center_vertical"
+        android:minHeight="48dp"
         android:orientation="horizontal"
+        android:paddingEnd="10dp"
         android:visibility="gone">
-        <TextView
-            android:id="@+id/title2"
+        <FrameLayout
+            android:id="@+id/check2"
+            android:layout_width="44dp"
+            android:layout_height="48dp"
+            android:contentDescription="@string/widget_done">
+            <ImageView
+                android:id="@+id/check_img2"
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:layout_gravity="center"
+                android:importantForAccessibility="no"
+                android:src="@drawable/widget_ic_check" />
+        </FrameLayout>
+        <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:ellipsize="end"
-            android:maxLines="1"
-            android:textColor="@color/widget_text"
-            android:textSize="14sp" />
+            android:orientation="vertical"
+            android:paddingTop="6dp"
+            android:paddingBottom="6dp">
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+                <ImageView
+                    android:id="@+id/star2"
+                    android:layout_width="14dp"
+                    android:layout_height="14dp"
+                    android:layout_marginEnd="4dp"
+                    android:importantForAccessibility="no"
+                    android:src="@drawable/widget_ic_star"
+                    android:visibility="gone" />
+                <TextView
+                    android:id="@+id/title2"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:textColor="@color/widget_text"
+                    android:textSize="14sp" />
+            </LinearLayout>
+            <TextView
+                android:id="@+id/sub2"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="1dp"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textColor="@color/widget_muted"
+                android:textSize="11sp"
+                android:visibility="gone" />
+        </LinearLayout>
         <TextView
             android:id="@+id/due2"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="6dp"
+            android:background="@drawable/widget_chip_chip"
+            android:paddingStart="6dp"
+            android:paddingTop="2dp"
+            android:paddingEnd="6dp"
+            android:paddingBottom="2dp"
             android:textColor="@color/widget_muted"
-            android:textSize="12sp"
+            android:textSize="11sp"
+            android:textStyle="bold"
             android:visibility="gone" />
-        <FrameLayout
-            android:id="@+id/check2"
-            android:layout_width="44dp"
-            android:layout_height="44dp"
-            android:contentDescription="완료">
-            <ImageView
-                android:layout_width="20dp"
-                android:layout_height="20dp"
-                android:layout_gravity="center"
-                android:src="@drawable/widget_check" />
-        </FrameLayout>
     </LinearLayout>
 
+    <TextView
+        android:id="@+id/label3"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="6dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="2dp"
+        android:text="@string/widget_next"
+        android:textColor="@color/widget_muted"
+        android:textSize="11sp"
+        android:textStyle="bold"
+        android:visibility="gone" />
     <LinearLayout
         android:id="@+id/row3"
         android:layout_width="match_parent"
-        android:layout_height="44dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:background="@drawable/widget_tile"
         android:gravity="center_vertical"
+        android:minHeight="48dp"
         android:orientation="horizontal"
+        android:paddingEnd="10dp"
         android:visibility="gone">
-        <TextView
-            android:id="@+id/title3"
+        <FrameLayout
+            android:id="@+id/check3"
+            android:layout_width="44dp"
+            android:layout_height="48dp"
+            android:contentDescription="@string/widget_done">
+            <ImageView
+                android:id="@+id/check_img3"
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:layout_gravity="center"
+                android:importantForAccessibility="no"
+                android:src="@drawable/widget_ic_check" />
+        </FrameLayout>
+        <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:ellipsize="end"
-            android:maxLines="1"
-            android:textColor="@color/widget_text"
-            android:textSize="14sp" />
+            android:orientation="vertical"
+            android:paddingTop="6dp"
+            android:paddingBottom="6dp">
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+                <ImageView
+                    android:id="@+id/star3"
+                    android:layout_width="14dp"
+                    android:layout_height="14dp"
+                    android:layout_marginEnd="4dp"
+                    android:importantForAccessibility="no"
+                    android:src="@drawable/widget_ic_star"
+                    android:visibility="gone" />
+                <TextView
+                    android:id="@+id/title3"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:textColor="@color/widget_text"
+                    android:textSize="14sp" />
+            </LinearLayout>
+            <TextView
+                android:id="@+id/sub3"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="1dp"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textColor="@color/widget_muted"
+                android:textSize="11sp"
+                android:visibility="gone" />
+        </LinearLayout>
         <TextView
             android:id="@+id/due3"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="6dp"
+            android:background="@drawable/widget_chip_chip"
+            android:paddingStart="6dp"
+            android:paddingTop="2dp"
+            android:paddingEnd="6dp"
+            android:paddingBottom="2dp"
             android:textColor="@color/widget_muted"
-            android:textSize="12sp"
+            android:textSize="11sp"
+            android:textStyle="bold"
             android:visibility="gone" />
-        <FrameLayout
-            android:id="@+id/check3"
-            android:layout_width="44dp"
-            android:layout_height="44dp"
-            android:contentDescription="완료">
-            <ImageView
-                android:layout_width="20dp"
-                android:layout_height="20dp"
-                android:layout_gravity="center"
-                android:src="@drawable/widget_check" />
-        </FrameLayout>
     </LinearLayout>
 
+    <TextView
+        android:id="@+id/label4"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="6dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="2dp"
+        android:text="@string/widget_next"
+        android:textColor="@color/widget_muted"
+        android:textSize="11sp"
+        android:textStyle="bold"
+        android:visibility="gone" />
     <LinearLayout
         android:id="@+id/row4"
         android:layout_width="match_parent"
-        android:layout_height="44dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:background="@drawable/widget_tile"
         android:gravity="center_vertical"
+        android:minHeight="48dp"
         android:orientation="horizontal"
+        android:paddingEnd="10dp"
         android:visibility="gone">
-        <TextView
-            android:id="@+id/title4"
+        <FrameLayout
+            android:id="@+id/check4"
+            android:layout_width="44dp"
+            android:layout_height="48dp"
+            android:contentDescription="@string/widget_done">
+            <ImageView
+                android:id="@+id/check_img4"
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:layout_gravity="center"
+                android:importantForAccessibility="no"
+                android:src="@drawable/widget_ic_check" />
+        </FrameLayout>
+        <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:ellipsize="end"
-            android:maxLines="1"
-            android:textColor="@color/widget_text"
-            android:textSize="14sp" />
+            android:orientation="vertical"
+            android:paddingTop="6dp"
+            android:paddingBottom="6dp">
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+                <ImageView
+                    android:id="@+id/star4"
+                    android:layout_width="14dp"
+                    android:layout_height="14dp"
+                    android:layout_marginEnd="4dp"
+                    android:importantForAccessibility="no"
+                    android:src="@drawable/widget_ic_star"
+                    android:visibility="gone" />
+                <TextView
+                    android:id="@+id/title4"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:textColor="@color/widget_text"
+                    android:textSize="14sp" />
+            </LinearLayout>
+            <TextView
+                android:id="@+id/sub4"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="1dp"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textColor="@color/widget_muted"
+                android:textSize="11sp"
+                android:visibility="gone" />
+        </LinearLayout>
         <TextView
             android:id="@+id/due4"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="6dp"
+            android:background="@drawable/widget_chip_chip"
+            android:paddingStart="6dp"
+            android:paddingTop="2dp"
+            android:paddingEnd="6dp"
+            android:paddingBottom="2dp"
             android:textColor="@color/widget_muted"
-            android:textSize="12sp"
+            android:textSize="11sp"
+            android:textStyle="bold"
             android:visibility="gone" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/label5"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="6dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="2dp"
+        android:text="@string/widget_next"
+        android:textColor="@color/widget_muted"
+        android:textSize="11sp"
+        android:textStyle="bold"
+        android:visibility="gone" />
+    <LinearLayout
+        android:id="@+id/row5"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:background="@drawable/widget_tile"
+        android:gravity="center_vertical"
+        android:minHeight="48dp"
+        android:orientation="horizontal"
+        android:paddingEnd="10dp"
+        android:visibility="gone">
         <FrameLayout
-            android:id="@+id/check4"
+            android:id="@+id/check5"
             android:layout_width="44dp"
-            android:layout_height="44dp"
-            android:contentDescription="완료">
+            android:layout_height="48dp"
+            android:contentDescription="@string/widget_done">
             <ImageView
-                android:layout_width="20dp"
-                android:layout_height="20dp"
+                android:id="@+id/check_img5"
+                android:layout_width="22dp"
+                android:layout_height="22dp"
                 android:layout_gravity="center"
-                android:src="@drawable/widget_check" />
+                android:importantForAccessibility="no"
+                android:src="@drawable/widget_ic_check" />
         </FrameLayout>
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:paddingTop="6dp"
+            android:paddingBottom="6dp">
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+                <ImageView
+                    android:id="@+id/star5"
+                    android:layout_width="14dp"
+                    android:layout_height="14dp"
+                    android:layout_marginEnd="4dp"
+                    android:importantForAccessibility="no"
+                    android:src="@drawable/widget_ic_star"
+                    android:visibility="gone" />
+                <TextView
+                    android:id="@+id/title5"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:textColor="@color/widget_text"
+                    android:textSize="14sp" />
+            </LinearLayout>
+            <TextView
+                android:id="@+id/sub5"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="1dp"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textColor="@color/widget_muted"
+                android:textSize="11sp"
+                android:visibility="gone" />
+        </LinearLayout>
+        <TextView
+            android:id="@+id/due5"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:background="@drawable/widget_chip_chip"
+            android:paddingStart="6dp"
+            android:paddingTop="2dp"
+            android:paddingEnd="6dp"
+            android:paddingBottom="2dp"
+            android:textColor="@color/widget_muted"
+            android:textSize="11sp"
+            android:textStyle="bold"
+            android:visibility="gone" />
     </LinearLayout>
 </LinearLayout>

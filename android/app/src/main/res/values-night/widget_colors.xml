@@ -1,9 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="widget_bg">#1B1F1D</color>
-    <color name="widget_text">#E2E6E3</color>
-    <color name="widget_muted">#9AA39E</color>
+    <color name="widget_bg">#161A18</color>
+    <color name="widget_tile">#232926</color>
+    <color name="widget_tile_pressed">#2E3632</color>
+    <color name="widget_text">#E3E8E5</color>
+    <color name="widget_muted">#9AA49F</color>
     <color name="widget_brand">#8CC7B4</color>
+    <color name="widget_on_brand">#0F2A22</color>
+    <color name="widget_brand_soft">#25433A</color>
+    <color name="widget_track">#2F3733</color>
     <color name="widget_danger">#FFB4AB</color>
-    <color name="widget_divider">#24FFFFFF</color>
+    <color name="widget_danger_soft">#4A1F1B</color>
+    <color name="widget_warn">#F2C46B</color>
+    <color name="widget_warn_soft">#3D3018</color>
+    <color name="widget_chip_soft">#2C332F</color>
 </resources>

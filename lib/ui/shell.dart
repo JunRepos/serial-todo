@@ -13,10 +13,10 @@ import 'today_page.dart';
 import 'tree_page.dart';
 
 class Shell extends StatefulWidget {
-  const Shell({super.key, this.openItemId});
+  const Shell({super.key, this.widgetUri});
 
-  /// 위젯에서 탭해 들어온 항목
-  final ValueNotifier<String?>? openItemId;
+  /// 홈 화면 위젯에서 들어온 동작 (open?id=… 항목 편집, add 오늘 할 일 추가)
+  final ValueNotifier<Uri?>? widgetUri;
 
   @override
   State<Shell> createState() => _ShellState();
@@ -39,7 +39,7 @@ class _ShellState extends State<Shell> {
   @override
   void initState() {
     super.initState();
-    widget.openItemId?.addListener(_openFromWidget);
+    widget.widgetUri?.addListener(_openFromWidget);
     WidgetsBinding.instance.addPostFrameCallback((_) => _openFromWidget());
   }
 
@@ -54,17 +54,24 @@ class _ShellState extends State<Shell> {
 
   @override
   void dispose() {
-    widget.openItemId?.removeListener(_openFromWidget);
+    widget.widgetUri?.removeListener(_openFromWidget);
     super.dispose();
   }
 
   void _openFromWidget() {
-    final n = widget.openItemId;
-    final id = n?.value;
-    if (id == null || !mounted) return;
+    final n = widget.widgetUri;
+    final uri = n?.value;
+    if (uri == null || !mounted) return;
     n!.value = null;
+    // 위젯은 "오늘" 기준이므로 오늘 탭으로 연다
     setState(() => _tab = 2);
-    if (AppScope.repo(context)[id] != null) openItemSheet(context, id);
+    AppScope.prefsOf(context).setInt(_kTab, 2);
+    if (uri.host == 'add') {
+      _fab();
+      return;
+    }
+    final id = uri.queryParameters['id'];
+    if (id != null && AppScope.repo(context)[id] != null) openItemSheet(context, id);
   }
 
   void _setTab(int i) {

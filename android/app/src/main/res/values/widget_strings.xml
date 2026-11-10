@@ -1,4 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="widget_description">오늘 할 일과 바로 할 수 있는 일</string>
+    <string name="widget_title">오늘</string>
+    <string name="widget_add">할 일 추가</string>
+    <string name="widget_done">완료</string>
+    <string name="widget_next">바로 할 수 있음</string>
 </resources>
