@@ -118,6 +118,13 @@ void main() {
     await t.pumpAndSettle();
     await t.enterText(find.byType(TextField).first, '시장 조사\n  경쟁사 A\n  경쟁사 B\n기획서\n  목차');
     await t.pump();
+    // 붙여넣기만으로는 아직 추가되지 않고, 버튼에 개수가 나온다
+    expect(repo.graph.kids('g1').where((e) => e.title == '기획서'), isEmpty);
+    // 목록 아래쪽이라 화면 가운데로 올린 뒤 누른다
+    await Scrollable.ensureVisible(t.element(find.widgetWithText(FilledButton, '5개 추가')), alignment: 0.5);
+    await t.pump();
+    await t.tap(find.widgetWithText(FilledButton, '5개 추가'));
+    await t.pump();
     final g = repo.graph;
     final newProj = g.kids('g1').where((e) => e.title == '시장 조사' || e.title == '기획서').toList();
     expect(newProj.length, 2);
@@ -127,6 +134,46 @@ void main() {
     expect(find.text('5개 추가'), findsOneWidget);
     // ignore: invalid_use_of_visible_for_testing_member
     expect(repo.graph.byId.values.where((Item i) => i.deleted).isEmpty, isTrue);
+    await _done(t, repo);
+  });
+
+  testWidgets('목표 추가: Enter는 줄바꿈, [추가] 버튼으로 추가', (t) async {
+    t.view.physicalSize = const Size(390, 844);
+    t.view.devicePixelRatio = 1;
+    addTearDown(t.view.reset);
+    final repo = await _repo();
+    final prefs = await SharedPreferences.getInstance();
+    await t.pumpWidget(_app(repo, prefs, Brightness.light));
+    await t.pumpAndSettle();
+    final before = repo.graph.goals.length;
+
+    await t.tap(find.byType(FloatingActionButton));
+    await t.pumpAndSettle();
+    final field = find.widgetWithText(TextField, '새 목표 · 한 줄에 하나씩');
+    expect(field, findsOneWidget);
+    // 비어 있으면 추가 버튼이 꺼져 있다
+    final btn = find.widgetWithText(FilledButton, '추가');
+    expect(t.widget<FilledButton>(btn).onPressed, isNull);
+
+    // Enter(줄바꿈)만으로는 추가되지 않는다
+    await t.enterText(field, '운동하기\n');
+    await t.pump();
+    expect(repo.graph.goals.length, before);
+
+    await t.enterText(field, '운동하기\n책 읽기');
+    await t.pump();
+    await t.tap(find.widgetWithText(FilledButton, '2개 추가'));
+    await t.pump();
+    expect(repo.graph.goals.length, before + 2);
+    expect(repo.graph.goals.map((e) => e.title), containsAll(['운동하기', '책 읽기']));
+    // 추가 후 입력창은 비워진 채 열려 있다
+    expect(find.widgetWithText(TextField, '새 목표 · 한 줄에 하나씩'), findsOneWidget);
+
+    await t.enterText(field, '혼자 추가');
+    await t.pump();
+    await t.tap(find.widgetWithText(FilledButton, '추가'));
+    await t.pump();
+    expect(repo.graph.goals.map((e) => e.title), contains('혼자 추가'));
     await _done(t, repo);
   });
 }

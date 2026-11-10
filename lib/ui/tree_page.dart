@@ -60,7 +60,7 @@ class TreePageState extends State<TreePage> {
         QuickAddField(
           key: const ValueKey('add-goal'),
           parentId: null,
-          hint: '새 목표 · 여러 줄 붙여넣기 가능',
+          hint: '새 목표 · 한 줄에 하나씩',
           autofocus: _addingGoal,
           onClose: g.goals.isEmpty ? null : () => setState(() => _addingGoal = false),
         ),
@@ -90,7 +90,7 @@ class TreePageState extends State<TreePage> {
               key: ValueKey('add-${it.id}'),
               parentId: it.id,
               indent: (it.level + 1) * 18.0,
-              hint: '${Item.levelNames[it.level + 1]} 추가 · Enter 계속',
+              hint: '새 ${Item.levelNames[it.level + 1]} · 한 줄에 하나씩',
               onClose: () => setState(() => _addingTo = null),
             ),
           );

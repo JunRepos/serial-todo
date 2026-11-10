@@ -139,11 +139,10 @@ class _ShellState extends State<Shell> {
         title: Text(_dests[_tab].$3),
         actions: [const _SyncChip(), _menu(context), const SizedBox(width: 4)],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _fab,
-        icon: const Icon(Icons.add),
-        label: Text(fabLabel),
-      ),
+      // 키보드가 떠 있을 때는 입력창의 [추가] 버튼을 가리지 않도록 숨긴다
+      floatingActionButton: MediaQuery.viewInsetsOf(context).bottom > 0
+          ? null
+          : FloatingActionButton.extended(onPressed: _fab, icon: const Icon(Icons.add), label: Text(fabLabel)),
       bottomNavigationBar: wide
           ? null
           : NavigationBar(
