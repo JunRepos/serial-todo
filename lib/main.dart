@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:home_widget/home_widget.dart';
@@ -8,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'data/repository.dart';
+import 'desktop/desk_main.dart';
 import 'ui/app_scope.dart';
 import 'ui/auth_page.dart';
 import 'ui/brand.dart';
@@ -19,7 +21,11 @@ import 'widget/widget_sync.dart';
 const supabaseUrl = String.fromEnvironment('SUPABASE_URL');
 const supabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
 
-Future<void> main() async {
+Future<void> main(List<String> args) async {
+  // 윈도우: 바탕화면 위젯(캘린더·할 일 창)으로 실행
+  if (!kIsWeb && defaultTargetPlatform == TargetPlatform.windows && supabaseUrl.isNotEmpty) {
+    return deskMain(args, url: supabaseUrl, anonKey: supabaseAnonKey);
+  }
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('ko');
   if (supabaseUrl.isEmpty || supabaseAnonKey.isEmpty) {

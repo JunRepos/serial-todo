@@ -1,4 +1,4 @@
-name: Build APK
+name: Build apps
 
 on:
   push:
@@ -94,6 +94,47 @@ jobs:
             serial-todo.apk
             serial-todo.aab
 
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.44.8'
+          cache: true
+
+      - run: flutter pub get
+
+      - name: Build Windows (바탕화면 위젯)
+        shell: bash
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          flutter build windows --release             --build-number=${{ github.run_number }}             --build-name=1.0.${{ github.run_number }}             --dart-define=SUPABASE_URL="$SUPABASE_URL"             --dart-define=SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY"
+
+      - name: Zip
+        shell: pwsh
+        run: |
+          $out = "build/windows/x64/runner/Release"
+          Rename-Item "$out/serial_todo.exe" "할일이많아.exe"
+          Compress-Archive -Path "$out/*" -DestinationPath serial-todo-windows.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: serial-todo-windows
+          path: serial-todo-windows.zip
+
+  release:
+    needs: [build, windows]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+
       - name: GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -103,7 +144,9 @@ jobs:
             커밋 ${{ github.sha }} 에서 빌드했습니다.
             - `serial-todo.apk`: 폰에 바로 설치
             - `serial-todo.aab`: Google Play Console 업로드용
+            - `serial-todo-windows.zip`: 윈도우 바탕화면 위젯(캘린더·할 일). 압축을 풀고 `할일이많아.exe` 실행
           files: |
             serial-todo.apk
             serial-todo.aab
+            serial-todo-windows.zip
           make_latest: true
