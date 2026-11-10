@@ -1,12 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Modify this file to customize your launch splash screen -->
+<!-- 앱 시작 직후(엔진 준비 전) 화면: 브랜드 색 + 가운데 아이콘. Flutter 시작 애니메이션으로 이어진다. -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:drawable="@android:color/white" />
-
-    <!-- You can insert your own image assets here -->
-    <!-- <item>
-        <bitmap
-            android:gravity="center"
-            android:src="@mipmap/launch_image" />
-    </item> -->
+    <item android:drawable="@color/splash_background" />
+    <item
+        android:width="144dp"
+        android:height="144dp"
+        android:drawable="@drawable/ic_launcher_foreground"
+        android:gravity="center" />
 </layer-list>

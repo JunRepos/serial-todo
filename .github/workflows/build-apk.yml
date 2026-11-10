@@ -72,21 +72,38 @@ jobs:
           done
           exit 1
 
-      - name: Rename APK
-        run: cp build/app/outputs/flutter-apk/app-release.apk serial-todo.apk
+      - name: Build release AAB (Play 스토어 업로드용)
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          flutter build appbundle --release             --build-number=${{ github.run_number }}             --build-name=1.0.${{ github.run_number }}             --dart-define=SUPABASE_URL="$SUPABASE_URL"             --dart-define=SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY"
+
+      - name: Rename outputs
+        run: |
+          cp build/app/outputs/flutter-apk/app-release.apk serial-todo.apk
+          cp build/app/outputs/bundle/release/app-release.aab serial-todo.aab
 
       - uses: actions/upload-artifact@v4
         with:
           name: serial-todo-apk
-          path: serial-todo.apk
+          path: |
+            serial-todo.apk
+            serial-todo.aab
 
       - name: GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v1.0.${{ github.run_number }}
-          name: 계열화 To-Do 1.0.${{ github.run_number }}
+          name: 할일이많아 1.0.${{ github.run_number }}
           body: |
-            커밋 ${{ github.sha }} 에서 빌드한 안드로이드 APK입니다.
-            `serial-todo.apk` 를 받아 설치하세요.
-          files: serial-todo.apk
+            커밋 ${{ github.sha }} 에서 빌드했습니다.
+            - `serial-todo.apk`: 폰에 바로 설치
+            - `serial-todo.aab`: Google Play Console 업로드용
+          files: |
+            serial-todo.apk
+            serial-todo.aab
           make_latest: true

@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>개인정보처리방침 · 할일이많아</title>
+  <link rel="icon" type="image/png" href="favicon.png">
+  <style>
+    :root { --bg: #FBFBF9; --fg: #1B1F1D; --muted: #5F6B65; --brand: #2E5B4E; --line: #E2E6E3; }
+    @media (prefers-color-scheme: dark) { :root { --bg: #151816; --fg: #E3E8E5; --muted: #9AA49F; --brand: #8CC7B4; --line: #2C332F; } }
+    body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.7 -apple-system, "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif; }
+    main { max-width: 720px; margin: 0 auto; padding: 32px 16px 64px; }
+    h1 { font-size: 26px; margin: 0 0 4px; }
+    h2 { font-size: 18px; margin: 32px 0 8px; color: var(--brand); }
+    p, li { color: var(--fg); }
+    .muted { color: var(--muted); font-size: 14px; }
+    table { width: 100%; border-collapse: collapse; font-size: 15px; }
+    th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+    a { color: var(--brand); }
+  </style>
+</head>
+<body>
+<main>
+  <h1>할일이많아 개인정보처리방침</h1>
+  <p class="muted">시행일: 2026년 11월 10일</p>
+
+  <p>할일이많아(이하 "앱")는 할 일을 기기 사이에 동기화하는 데 필요한 최소한의 정보만 처리합니다. 광고나 분석 도구를 쓰지 않으며, 정보를 판매하거나 제3자와 공유하지 않습니다.</p>
+
+  <h2>1. 처리하는 정보</h2>
+  <table>
+    <tr><th>항목</th><th>목적</th><th>보관</th></tr>
+    <tr><td>이메일 주소, 비밀번호(암호화 저장)</td><td>로그인과 계정 구분</td><td>계정 삭제 시까지</td></tr>
+    <tr><td>사용자가 입력한 할 일(제목, 메모, 마감일, 상태, 선행 관계 등)</td><td>앱 기능 제공, 기기 간 동기화</td><td>계정 삭제 시까지</td></tr>
+    <tr><td>접속 기록(서버 요청 로그)</td><td>장애 대응·보안</td><td>서비스 제공자 정책에 따라 단기 보관 후 삭제</td></tr>
+  </table>
+  <p>위치, 연락처, 사진, 기기 식별자는 수집하지 않습니다.</p>
+
+  <h2>2. 저장 위치와 처리 위탁</h2>
+  <p>데이터는 Supabase Inc.가 운영하는 서버(서울 리전, ap-northeast-2)에 저장됩니다. 전송 구간은 HTTPS로 암호화되며, 각 사용자는 행 단위 보안 정책(RLS)으로 본인 데이터에만 접근할 수 있습니다. 앱은 오프라인 사용을 위해 할 일 사본을 기기 안에도 저장합니다.</p>
+
+  <h2>3. 계정과 데이터 삭제</h2>
+  <p>앱의 오른쪽 위 메뉴(⋮) → <b>계정 삭제</b>를 누르면 계정과 모든 할 일이 서버에서 즉시 영구 삭제됩니다. 앱을 쓸 수 없는 경우 <a href="delete-account.html">계정 삭제 요청 안내</a>를 참고하세요.</p>
+
+  <h2>4. 이용자의 권리</h2>
+  <p>이용자는 언제든 자신의 정보를 조회·수정·삭제할 수 있습니다. 할 일은 앱에서 직접 수정·삭제할 수 있고, 계정은 위 방법으로 삭제할 수 있습니다.</p>
+
+  <h2>5. 아동의 개인정보</h2>
+  <p>앱은 만 14세 미만 아동을 대상으로 하지 않습니다.</p>
+
+  <h2>6. 문의</h2>
+  <p>개인정보 관련 문의는 <a href="https://github.com/JunRepos/serial-todo/issues">GitHub 이슈</a>로 남겨 주세요.</p>
+
+  <h2>7. 변경</h2>
+  <p>이 방침이 바뀌면 이 페이지에 시행일과 함께 게시합니다.</p>
+</main>
+</body>
+</html>

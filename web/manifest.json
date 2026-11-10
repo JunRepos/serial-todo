@@ -1,6 +1,6 @@
 {
-    "name": "계열화 To-Do",
-    "short_name": "계열화 To-Do",
+    "name": "할일이많아",
+    "short_name": "할일이많아",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#FBFBF9",

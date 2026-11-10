@@ -10,6 +10,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'data/repository.dart';
 import 'ui/app_scope.dart';
 import 'ui/auth_page.dart';
+import 'ui/brand.dart';
+import 'ui/onboarding.dart';
 import 'ui/shell.dart';
 import 'ui/theme.dart';
 import 'widget/widget_sync.dart';
@@ -104,16 +106,28 @@ class _SerialTodoAppState extends State<SerialTodoApp> with WidgetsBindingObserv
       repo: widget.repo,
       prefs: widget.prefs,
       child: MaterialApp(
-        title: '계열화 To-Do',
+        title: '할일이많아',
         debugShowCheckedModeBanner: false,
         theme: buildTheme(Brightness.light),
         darkTheme: buildTheme(Brightness.dark),
         locale: const Locale('ko'),
         supportedLocales: const [Locale('ko'), Locale('en')],
         localizationsDelegates: GlobalMaterialLocalizations.delegates,
-        home: _session == null ? const AuthPage() : Shell(widgetUri: _widgetUri),
+        home: IntroSplash(child: _home()),
       ),
     );
+  }
+
+  Widget _home() {
+    if (widget.prefs.getBool(Onboarding.prefsKey) != true) {
+      return Onboarding(
+        onDone: () {
+          widget.prefs.setBool(Onboarding.prefsKey, true);
+          setState(() {});
+        },
+      );
+    }
+    return _session == null ? const AuthPage() : Shell(widgetUri: _widgetUri);
   }
 }
 

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'brand.dart';
+import 'onboarding.dart';
 import 'theme.dart';
 
 class AuthPage extends StatefulWidget {
@@ -74,16 +76,16 @@ class _AuthPageState extends State<AuthPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Icon(Icons.account_tree_rounded, size: 44, color: scheme.primary),
-                    const SizedBox(height: 12),
+                    const Center(child: BrandMark(size: 72)),
+                    const SizedBox(height: 16),
                     const Text(
-                      '계열화 To-Do',
+                      '할일이많아',
                       textAlign: TextAlign.center,
                       style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '목표 → 프로젝트 → 액션',
+                      appTagline,
                       textAlign: TextAlign.center,
                       style: TextStyle(color: Tone.muted(context)),
                     ),

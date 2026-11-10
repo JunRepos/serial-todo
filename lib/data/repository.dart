@@ -79,6 +79,20 @@ class Repository extends ChangeNotifier {
     await _teardown();
   }
 
+  /// 계정 삭제 후: 이 기기에 남은 그 계정의 캐시·대기열을 지운다.
+  Future<void> forgetLocal() async {
+    final uid = _uid;
+    await stop();
+    if (uid == null) return;
+    for (final k in ['items_v1_$uid', 'pending_v1_$uid', 'cursor_v1_$uid', 'seeded_v1_$uid']) {
+      await _prefs.remove(k);
+    }
+    _items.clear();
+    _pending.clear();
+    graph = Graph(const []);
+    notifyListeners();
+  }
+
   Future<void> _teardown() async {
     _pushTimer?.cancel();
     _retryTimer?.cancel();

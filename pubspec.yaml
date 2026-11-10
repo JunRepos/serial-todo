@@ -1,5 +1,5 @@
 name: serial_todo
-description: "계열화 To-Do — 목표 → 프로젝트 → 액션, 선행 관계로 실행 순서를 계산하는 할 일 앱"
+description: "할일이많아 — 목표 → 프로젝트 → 액션, 선행 관계로 실행 순서를 계산하는 할 일 앱"
 publish_to: 'none'
 
 version: 1.0.0+1

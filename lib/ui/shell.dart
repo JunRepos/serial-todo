@@ -7,6 +7,7 @@ import '../logic/graph.dart';
 import 'app_scope.dart';
 import 'calendar_page.dart';
 import 'item_sheet.dart';
+import 'onboarding.dart';
 import 'sequence_page.dart';
 import 'theme.dart';
 import 'today_page.dart';
@@ -188,13 +189,51 @@ class _ShellState extends State<Shell> {
       onSelected: (v) {
         if (v == 'logout') Supabase.instance.client.auth.signOut();
         if (v == 'sync') AppScope.repo(context).refresh();
+        if (v == 'help') showOnboarding(context);
+        if (v == 'delete') _deleteAccount();
       },
       itemBuilder: (_) => [
         PopupMenuItem(enabled: false, child: Text(email)),
         const PopupMenuItem(value: 'sync', child: Text('지금 동기화')),
+        const PopupMenuItem(value: 'help', child: Text('사용법')),
         const PopupMenuItem(value: 'logout', child: Text('로그아웃')),
+        PopupMenuItem(
+          value: 'delete',
+          child: Text('계정 삭제', style: TextStyle(color: Theme.of(context).colorScheme.error)),
+        ),
       ],
     );
+  }
+
+  /// 계정과 모든 할 일을 서버에서 지운다 (되돌릴 수 없음).
+  Future<void> _deleteAccount() async {
+    final repo = AppScope.repo(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('계정을 삭제할까요?'),
+        content: const Text('계정과 모든 할 일이 서버에서 영구히 지워집니다. 되돌릴 수 없어요.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('취소')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Theme.of(ctx).colorScheme.error),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('삭제'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      final client = Supabase.instance.client;
+      await client.rpc<void>('delete_my_account');
+      await repo.forgetLocal();
+      await client.auth.signOut();
+      messenger.showSnackBar(const SnackBar(content: Text('계정을 삭제했습니다.')));
+    } catch (e) {
+      messenger.showSnackBar(const SnackBar(content: Text('삭제하지 못했습니다. 인터넷 연결을 확인하세요.')));
+    }
   }
 }
 

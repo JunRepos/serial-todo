@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- tool/brand/make_brand.js 가 생성 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
+    <path android:pathData="M30,80 V68 H46 V56 H62 V44 H78 V80 Z" android:fillColor="#FFFFFF"
+        android:strokeColor="#FFFFFF" android:strokeWidth="4" android:strokeLineJoin="round" />
+    <path android:pathData="M58.5,31.5 L65,38 L78.5,24.5" android:fillColor="#00000000"
+        android:strokeColor="#A6E3CB" android:strokeWidth="6" android:strokeLineCap="round" android:strokeLineJoin="round" />
+</vector>
