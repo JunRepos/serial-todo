@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../data/repository.dart';
 import '../logic/graph.dart';
 import 'app_scope.dart';
+import 'auth_page.dart';
 import 'calendar_page.dart';
 import 'item_sheet.dart';
 import 'onboarding.dart';
@@ -237,12 +238,21 @@ class _ShellState extends State<Shell> {
         if (v == 'logout') Supabase.instance.client.auth.signOut();
         if (v == 'sync') AppScope.repo(context).refresh();
         if (v == 'help') showOnboarding(context);
+        if (v == 'password') {
+          Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              fullscreenDialog: true,
+              builder: (ctx) => NewPasswordPage(onDone: () => Navigator.pop(ctx), onCancel: () => Navigator.pop(ctx)),
+            ),
+          );
+        }
         if (v == 'delete') _deleteAccount();
       },
       itemBuilder: (_) => [
         PopupMenuItem(enabled: false, child: Text(email)),
         const PopupMenuItem(value: 'sync', child: Text('지금 동기화')),
         const PopupMenuItem(value: 'help', child: Text('사용법')),
+        const PopupMenuItem(value: 'password', child: Text('비밀번호 변경')),
         const PopupMenuItem(value: 'logout', child: Text('로그아웃')),
         PopupMenuItem(
           value: 'delete',

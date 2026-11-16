@@ -21,6 +21,10 @@ import 'widget/widget_sync.dart';
 const supabaseUrl = String.fromEnvironment('SUPABASE_URL');
 const supabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
 
+/// 재설정 메일 링크를 요청한 기기가 아닌 곳(예: 폰에서 요청, PC 브라우저에서 열기)에서도
+/// 열 수 있도록 코드 교환(PKCE) 대신 토큰이 바로 오는 방식을 쓴다.
+const authOptions = FlutterAuthClientOptions(authFlowType: AuthFlowType.implicit);
+
 Future<void> main(List<String> args) async {
   // 윈도우: 바탕화면 위젯(캘린더·할 일 창)으로 실행
   if (!kIsWeb && defaultTargetPlatform == TargetPlatform.windows && supabaseUrl.isNotEmpty) {
@@ -32,17 +36,23 @@ Future<void> main(List<String> args) async {
     runApp(const _ConfigMissing());
     return;
   }
-  await Supabase.initialize(url: supabaseUrl, publishableKey: supabaseAnonKey);
+  // 재설정 메일의 링크로 들어왔는지 (Supabase가 주소의 토큰을 지우기 전에 확인)
+  final link = Uri.base.toString();
+  final recovery = kIsWeb && link.contains('type=recovery') && link.contains('access_token');
+  await Supabase.initialize(url: supabaseUrl, publishableKey: supabaseAnonKey, authOptions: authOptions);
   final prefs = await SharedPreferences.getInstance();
   final repo = Repository(prefs, Supabase.instance.client)..onGraphChanged = WidgetSync.schedule;
   await WidgetSync.init();
-  runApp(SerialTodoApp(repo: repo, prefs: prefs));
+  runApp(SerialTodoApp(repo: repo, prefs: prefs, recovery: recovery));
 }
 
 class SerialTodoApp extends StatefulWidget {
-  const SerialTodoApp({super.key, required this.repo, required this.prefs});
+  const SerialTodoApp({super.key, required this.repo, required this.prefs, this.recovery = false});
   final Repository repo;
   final SharedPreferences prefs;
+
+  /// 비밀번호 재설정 링크로 열렸다
+  final bool recovery;
 
   @override
   State<SerialTodoApp> createState() => _SerialTodoAppState();
@@ -53,10 +63,12 @@ class _SerialTodoAppState extends State<SerialTodoApp> with WidgetsBindingObserv
   StreamSubscription<Uri?>? _widgetSub;
   final _widgetUri = ValueNotifier<Uri?>(null);
   Session? _session;
+  bool _needNewPassword = false;
 
   @override
   void initState() {
     super.initState();
+    _needNewPassword = widget.recovery;
     WidgetsBinding.instance.addObserver(this);
     final auth = Supabase.instance.client.auth;
     _session = auth.currentSession;
@@ -68,7 +80,10 @@ class _SerialTodoAppState extends State<SerialTodoApp> with WidgetsBindingObserv
       } else if (s.event == AuthChangeEvent.signedOut) {
         widget.repo.stop();
       }
-      setState(() => _session = s.session);
+      setState(() {
+        _session = s.session;
+        if (s.event == AuthChangeEvent.passwordRecovery) _needNewPassword = true;
+      });
     });
     if (WidgetSync.supported) {
       HomeWidget.initiallyLaunchedFromHomeWidget().then(_onWidgetUri);
@@ -132,6 +147,9 @@ class _SerialTodoAppState extends State<SerialTodoApp> with WidgetsBindingObserv
           setState(() {});
         },
       );
+    }
+    if (_session != null && _needNewPassword) {
+      return NewPasswordPage(fromRecovery: true, onDone: () => setState(() => _needNewPassword = false));
     }
     return _session == null ? const AuthPage() : Shell(widgetUri: _widgetUri);
   }

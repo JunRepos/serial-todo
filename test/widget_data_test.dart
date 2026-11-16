@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:serial_todo/logic/graph.dart';
+import 'package:serial_todo/models/item.dart';
 import 'package:serial_todo/widget/widget_sync.dart';
 
 import 'graph_test.dart' show sample;
@@ -60,5 +61,35 @@ void main() {
     d = WidgetSync.markDone(d, 'a1');
     expect(d['ready'], 0);
     expect(d['doneToday'], 2);
+  });
+
+  test('계열 위젯: 목표별 줄과 완료 수, 체크하면 그 줄과 완료 수가 바뀐다', () {
+    final items = sample();
+    var d = WidgetSync.buildData(Graph(items), now: now);
+    final series = d['series'] as List;
+    expect(series, isNotEmpty);
+    final goal = series.first as Map;
+    final rows = goal['rows'] as List;
+    expect(rows.where((r) => r['t'] == 'a').length, goal['total']);
+    final first = rows.firstWhere((r) => r['t'] == 'a') as Map;
+    final before = goal['done'] as int;
+
+    d = WidgetSync.markDone(d, first['id'] as String);
+    final after = (d['series'] as List).first as Map;
+    expect(after['done'], before + 1);
+    expect((after['rows'] as List).firstWhere((r) => r['id'] == first['id'])['done'], isTrue);
+  });
+
+  test('일정 위젯: 오늘부터의 일정과 끝나지 않은 마감만, 일정은 할 일 목록에 없다', () {
+    final items = sample()
+      ..add(Item(id: 'e1', level: Item.eventLevel, title: '치과', due: '2026-11-10'))
+      ..add(Item(id: 'e0', level: Item.eventLevel, title: '지난 일정', due: '2026-11-01'));
+    items.firstWhere((e) => e.id == 'a1').due = '2026-11-05'; // 지난 마감
+    final d = WidgetSync.buildData(Graph(items), now: now);
+    final agenda = d['agenda'] as List;
+    expect(agenda.map((e) => e['id']), ['a1', 'e1']);
+    expect(agenda.last['e'], isTrue);
+    expect((d['items'] as List).any((e) => e['id'] == 'e1'), isFalse);
+    expect(WidgetSync.markDone(d, 'a1')['agenda'].map((e) => e['id']), ['e1']);
   });
 }

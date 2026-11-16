@@ -5,4 +5,8 @@
     <string name="widget_add">할 일 추가</string>
     <string name="widget_done">완료</string>
     <string name="widget_next">바로 할 수 있음</string>
+    <string name="widget_wait">대기</string>
+    <string name="widget_series_description">목표별로 접고 펴며 보는 할 일 계열</string>
+    <string name="widget_agenda_description">다가오는 일정과 마감</string>
+    <string name="widget_quick_description">할 일 빠른 추가</string>
 </resources>

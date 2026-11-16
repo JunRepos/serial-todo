@@ -27,7 +27,11 @@ Future<void> deskMain(List<String> args, {required String url, required String a
     return;
   }
 
-  await Supabase.initialize(url: url, publishableKey: anonKey);
+  await Supabase.initialize(
+    url: url,
+    publishableKey: anonKey,
+    authOptions: const FlutterAuthClientOptions(authFlowType: AuthFlowType.implicit),
+  );
   final prefs = await SharedPreferences.getInstance();
   final repo = Repository(prefs, Supabase.instance.client);
   final data = RepoData(repo);

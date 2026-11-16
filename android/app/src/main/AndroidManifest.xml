@@ -40,6 +40,36 @@
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/today_widget_info" />
         </receiver>
 
+        <!-- 홈 화면 "계열" 위젯: 목표별로 접고 펴는 목록 -->
+        <receiver android:name=".SeriesWidgetProvider" android:exported="true" android:label="계열">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/series_widget_info" />
+        </receiver>
+
+        <!-- 홈 화면 "일정·마감" 위젯 -->
+        <receiver android:name=".AgendaWidgetProvider" android:exported="true" android:label="일정·마감">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/agenda_widget_info" />
+        </receiver>
+
+        <!-- 홈 화면 "빠른 추가" 버튼 -->
+        <receiver android:name=".QuickAddWidgetProvider" android:exported="true" android:label="빠른 추가">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/quick_add_widget_info" />
+        </receiver>
+
+        <!-- 목록형 위젯의 줄을 만들어 주는 서비스 -->
+        <service
+            android:name=".ListWidgetService"
+            android:exported="false"
+            android:permission="android.permission.BIND_REMOTEVIEWS" />
+
         <!-- 위젯 체크 버튼 → Dart 백그라운드 콜백 -->
         <receiver android:name="es.antonborri.home_widget.HomeWidgetBackgroundReceiver" android:exported="true">
             <intent-filter>

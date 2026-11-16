@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 항목 줄: 체크(또는 일정 막대) · 제목 · 칩 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/row_root"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:gravity="center_vertical"
+    android:minHeight="40dp"
+    android:orientation="horizontal"
+    android:paddingEnd="10dp">
+    <FrameLayout
+        android:id="@+id/row_check"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:contentDescription="@string/widget_done">
+        <ImageView
+            android:id="@+id/row_check_img"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:layout_gravity="center"
+            android:importantForAccessibility="no"
+            android:src="@drawable/widget_ic_check" />
+    </FrameLayout>
+    <LinearLayout
+        android:id="@+id/row_body"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        android:paddingTop="4dp"
+        android:paddingBottom="4dp">
+        <TextView
+            android:id="@+id/row_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textColor="@color/widget_text"
+            android:textSize="14sp" />
+        <TextView
+            android:id="@+id/row_sub"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textColor="@color/widget_muted"
+            android:textSize="11sp"
+            android:visibility="gone" />
+    </LinearLayout>
+    <TextView
+        android:id="@+id/row_chip"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="6dp"
+        android:background="@drawable/widget_chip_chip"
+        android:paddingStart="6dp"
+        android:paddingTop="2dp"
+        android:paddingEnd="6dp"
+        android:paddingBottom="2dp"
+        android:textColor="@color/widget_muted"
+        android:textSize="11sp"
+        android:textStyle="bold"
+        android:visibility="gone" />
+</LinearLayout>
