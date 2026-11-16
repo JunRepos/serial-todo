@@ -44,7 +44,9 @@ void main() {
       i.today = true;
     }
     final d = WidgetSync.buildData(Graph(items), now: now);
-    expect((d['items'] as List).length, WidgetSync.maxItems);
+    // 말단 8개 전부 (최대 개수를 넘지 않는다)
+    expect((d['items'] as List).length, 8);
+    expect(8, lessThanOrEqualTo(WidgetSync.maxItems));
     expect(d['remaining'], 8);
   });
 

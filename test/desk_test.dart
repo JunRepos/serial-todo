@@ -182,7 +182,10 @@ void main() {
     ]);
     await t.pumpWidget(_wrap(data, const DeskTodo(), Brightness.light));
     await t.pump();
-    expect(find.text('출발'), findsNothing); // 일정은 할 일 창에 없다
+    // 일정은 할 일 목록에 섞이지 않고 '오늘 일정'에만 한 번 보인다
+    expect(find.text('오늘 일정  1'), findsOneWidget);
+    expect(find.text('출발'), findsOneWidget);
+    expect(find.text('바로 할 수 있음  1'), findsOneWidget);
     expect(find.text('계열  1'), findsOneWidget);
     expect(find.text('숙소'), findsNothing); // 대기 중이라 접힌 계열 안에만 있다
 

@@ -10,6 +10,7 @@ import '../data/repository.dart';
 import '../logic/graph.dart';
 import '../ui/app_scope.dart';
 import '../ui/theme.dart';
+import '../widget/notif_sync.dart';
 import 'desk_bridge.dart';
 import 'desk_calendar.dart';
 import 'desk_todo.dart';
@@ -35,6 +36,8 @@ Future<void> deskMain(List<String> args, {required String url, required String a
   final prefs = await SharedPreferences.getInstance();
   final repo = Repository(prefs, Supabase.instance.client);
   final data = RepoData(repo);
+  // 위젯이 떠 있는 동안 일정 알림 시각이 되면 윈도우 알림을 띄운다
+  NotifSync.watch(() => repo.graph);
   runApp(
     AppScope(
       repo: repo,

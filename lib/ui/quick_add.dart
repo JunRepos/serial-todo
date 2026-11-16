@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../logic/outline.dart';
 import 'app_scope.dart';
+import 'common.dart';
 
 /// 인라인 빠른 추가.
 /// - [추가] 버튼으로 추가한다. Enter는 줄바꿈이라 한 줄에 하나씩 여러 개를 적을 수 있다.
@@ -36,7 +37,8 @@ class _QuickAddFieldState extends State<QuickAddField> {
   KeyEventResult _onKey(FocusNode n, KeyEvent e) {
     if (e is! KeyDownEvent) return KeyEventResult.ignored;
     if (e.logicalKey == LogicalKeyboardKey.escape) {
-      widget.onClose?.call();
+      // 적어 둔 내용이 있으면 실수로 날리지 않게 닫지 않는다
+      if (_c.text.trim().isEmpty) widget.onClose?.call();
       return KeyEventResult.handled;
     }
     final enter = e.logicalKey == LogicalKeyboardKey.enter || e.logicalKey == LogicalKeyboardKey.numpadEnter;
@@ -71,24 +73,21 @@ class _QuickAddFieldState extends State<QuickAddField> {
     }
     final repo = AppScope.repo(context);
     if (lines.length == 1) {
-      repo.add(widget.parentId, lines.first.trim());
+      // 한 줄이어도 '- ' 같은 목록 기호는 떼고 넣는다
+      final parsed = parseOutline(lines.first);
+      repo.add(widget.parentId, parsed.isEmpty ? lines.first.trim() : parsed.first.title);
     } else {
       final made = repo.addOutline(widget.parentId, parseOutline(_c.text));
       if (made.isNotEmpty) {
-        final messenger = ScaffoldMessenger.of(context);
-        messenger.hideCurrentSnackBar();
-        messenger.showSnackBar(
-          SnackBar(
-            content: Text('${made.length}개 추가'),
-            action: SnackBarAction(
-              label: '되돌리기',
-              onPressed: () {
-                for (final it in made.where((e) => e.parentId == widget.parentId)) {
-                  repo.remove(it.id);
-                }
-              },
-            ),
-          ),
+        showTopToast(
+          context,
+          '${made.length}개 추가',
+          actionLabel: '되돌리기',
+          onAction: () {
+            for (final it in made.where((e) => e.parentId == widget.parentId)) {
+              repo.remove(it.id);
+            }
+          },
         );
       }
     }

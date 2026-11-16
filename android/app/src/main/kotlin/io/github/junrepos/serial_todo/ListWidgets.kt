@@ -403,8 +403,12 @@ private class ListFactory(private val context: Context, private val kind: String
             // 줄 전체를 누르면 앱에서 그 항목 열기
             val open = Intent().setData(Uri.parse("serialtodo://open?id=${Uri.encode(r.id)}"))
             v.setOnClickFillInIntent(R.id.row_root, open)
-        } else if (!r.done) {
-            v.setOnClickFillInIntent(R.id.row_check, Intent().putExtra(EXTRA_OP, "done").putExtra(EXTRA_ID, r.id))
+        } else {
+            // 줄 화면은 재사용되므로 끝낸 줄에도 반드시 다시 채운다(앞 줄의 '완료' 동작이 남지 않게)
+            v.setOnClickFillInIntent(
+                R.id.row_check,
+                Intent().putExtra(EXTRA_OP, if (r.done) "noop" else "done").putExtra(EXTRA_ID, r.id),
+            )
         }
         return v
     }

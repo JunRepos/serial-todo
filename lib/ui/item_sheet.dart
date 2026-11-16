@@ -7,9 +7,11 @@ import '../logic/graph.dart';
 import '../models/item.dart';
 import 'app_scope.dart';
 import 'common.dart';
+import 'event_sheet.dart';
 import 'theme.dart';
 
 Future<void> openItemSheet(BuildContext context, String id) {
+  if (AppScope.repo(context)[id]?.isEvent ?? false) return openEventEditor(context, id: id);
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
@@ -29,14 +31,15 @@ Future<void> openItemSheet(BuildContext context, String id) {
 void deleteWithUndo(BuildContext context, Repository repo, String id) {
   final it = repo[id];
   if (it == null) return;
+  final kids = repo.graph.descendants(id).length;
   final snap = repo.remove(id);
-  final messenger = ScaffoldMessenger.of(context);
-  messenger.hideCurrentSnackBar();
-  messenger.showSnackBar(
-    SnackBar(
-      content: Text('"${it.title}" 삭제됨'),
-      action: SnackBarAction(label: '되돌리기', onPressed: () => repo.restore(snap)),
-    ),
+  showTopToast(
+    context,
+    kids == 0 ? '"${it.title}" 삭제됨' : '"${it.title}"와 하위 $kids개 삭제됨',
+    actionLabel: '되돌리기',
+    onAction: () => repo.restore(snap),
+    // 하위까지 지웠으면 되돌릴 시간을 넉넉히
+    duration: Duration(seconds: kids == 0 ? 5 : 10),
   );
 }
 
@@ -119,7 +122,7 @@ class _ItemSheetState extends State<_ItemSheet> {
             child: Padding(padding: EdgeInsets.all(32), child: Text('삭제된 항목입니다.')),
           );
         }
-        return it.isEvent ? _eventBody(context, repo, it) : _body(context, repo, g, it);
+        return _body(context, repo, g, it);
       },
     );
   }
@@ -155,6 +158,8 @@ class _ItemSheetState extends State<_ItemSheet> {
           controller: _title,
           style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
           decoration: const InputDecoration(hintText: '제목'),
+          minLines: 1,
+          maxLines: 3,
           textInputAction: TextInputAction.done,
           onChanged: (_) {
             _tDebounce?.cancel();
@@ -227,6 +232,30 @@ class _ItemSheetState extends State<_ItemSheet> {
               IconButton(tooltip: '마감 지우기', onPressed: () => repo.setDue(it.id, null), icon: const Icon(Icons.close)),
           ],
         ),
+        const SizedBox(height: 6),
+        // 자주 쓰는 날짜는 한 번에
+        Builder(
+          builder: (context) {
+            final now = DateTime.now();
+            final nextMon = now.add(Duration(days: (8 - now.weekday) % 7 == 0 ? 7 : (8 - now.weekday) % 7));
+            return Wrap(
+              spacing: 6,
+              children: [
+                for (final (label, d) in [
+                  ('오늘', now),
+                  ('내일', now.add(const Duration(days: 1))),
+                  ('이번 주 금', now.add(Duration(days: (5 - now.weekday) % 7))),
+                  ('다음 주 월', nextMon),
+                ])
+                  ActionChip(
+                    label: Text(label),
+                    visualDensity: VisualDensity.compact,
+                    onPressed: () => repo.setDue(it.id, dateKey(d)),
+                  ),
+              ],
+            );
+          },
+        ),
         const SizedBox(height: 8),
         if (leaf)
           SwitchListTile(
@@ -297,83 +326,6 @@ class _ItemSheetState extends State<_ItemSheet> {
           },
           icon: const Icon(Icons.delete_outline),
           label: Text(g.descendants(it.id).isEmpty ? '삭제' : '삭제 (하위 ${g.descendants(it.id).length}개 포함)'),
-        ),
-      ],
-    );
-  }
-
-  /// 일정: 제목·날짜·메모만 있다
-  Widget _eventBody(BuildContext context, Repository repo, Item it) {
-    final scheme = Theme.of(context).colorScheme;
-    const gap = SizedBox(height: 18);
-    return ListView(
-      controller: widget.scroll,
-      padding: EdgeInsets.fromLTRB(20, 0, 20, 24 + MediaQuery.viewInsetsOf(context).bottom),
-      children: [
-        Align(
-          alignment: Alignment.centerLeft,
-          child: Badge2(it.levelName, color: scheme.primary, filled: true),
-        ),
-        const SizedBox(height: 10),
-        TextField(
-          controller: _title,
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-          decoration: const InputDecoration(hintText: '제목'),
-          textInputAction: TextInputAction.done,
-          onChanged: (_) {
-            _tDebounce?.cancel();
-            _tDebounce = Timer(const Duration(milliseconds: 500), _saveTitle);
-          },
-          onSubmitted: (_) {
-            _tDebounce?.cancel();
-            _saveTitle();
-          },
-        ),
-        gap,
-        _label('날짜'),
-        OutlinedButton.icon(
-          style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(44), alignment: Alignment.centerLeft),
-          icon: const Icon(Icons.event, size: 18),
-          label: Text(it.due ?? '날짜 선택'),
-          onPressed: () async {
-            final now = DateTime.now();
-            final d = await showDatePicker(
-              context: context,
-              initialDate: DateTime.tryParse(it.due ?? '') ?? now,
-              firstDate: DateTime(now.year - 5),
-              lastDate: DateTime(now.year + 10),
-            );
-            if (d != null) repo.setDue(it.id, dateKey(d));
-          },
-        ),
-        gap,
-        _label('메모'),
-        TextField(
-          controller: _note,
-          minLines: 3,
-          maxLines: 8,
-          decoration: const InputDecoration(hintText: '메모'),
-          onChanged: (v) {
-            _nDebounce?.cancel();
-            _nDebounce = Timer(const Duration(milliseconds: 600), () => repo.update(it.id, (x) => x.note = v));
-          },
-        ),
-        const SizedBox(height: 28),
-        TextButton.icon(
-          style: TextButton.styleFrom(minimumSize: const Size.fromHeight(44)),
-          onPressed: () => repo.setEvent(it.id, false),
-          icon: const Icon(Icons.check_circle_outline),
-          label: const Text('할 일로 바꾸기'),
-        ),
-        TextButton.icon(
-          style: TextButton.styleFrom(foregroundColor: scheme.error, minimumSize: const Size.fromHeight(44)),
-          onPressed: () {
-            final host = widget.hostContext;
-            Navigator.of(context).pop();
-            deleteWithUndo(host, repo, it.id);
-          },
-          icon: const Icon(Icons.delete_outline),
-          label: const Text('삭제'),
         ),
       ],
     );

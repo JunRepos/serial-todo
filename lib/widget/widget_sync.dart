@@ -21,7 +21,7 @@ class WidgetSync {
   static const _kDoneQueue = 'widget_done_queue';
 
   /// 위젯에 넣는 최대 항목 수 (위젯 크기에 따라 Kotlin 쪽에서 더 줄인다)
-  static const maxItems = 6;
+  static const maxItems = 12;
 
   static bool get supported => !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
 
@@ -70,6 +70,13 @@ class WidgetSync {
     ];
     return {
       'v': 3,
+      // 이 데이터를 만든 날. 날짜가 바뀌면 위젯이 어제의 완료 표시·진행률을 버린다.
+      'day': todayKey,
+      // 오늘 일정 (오늘 위젯 머리에 한 줄로)
+      'events': [
+        for (final e in g.byDate[todayKey] ?? const <Item>[])
+          if (e.isEvent) e.chipTitle,
+      ],
       'remaining': lists.today.length,
       'ready': lists.ready.length,
       'doneToday': doneToday,
@@ -133,16 +140,19 @@ class WidgetSync {
   static List<Map<String, dynamic>> _agenda(Graph g, String todayKey) {
     final out = <Map<String, dynamic>>[];
     final dates = g.byDate;
+    final seen = <String>{};
     for (final date in dates.keys.toList()..sort()) {
       for (final it in dates[date]!) {
         if (it.isEvent ? date.compareTo(todayKey) < 0 : g.isDone(it.id)) continue;
+        // 여러 날 일정은 오늘 이후 첫날에 한 번만
+        if (!seen.add(it.id)) continue;
         if (out.length >= maxAgenda) return out;
         out.add({
           'id': it.id,
-          'title': it.title,
+          'title': it.isEvent ? it.chipTitle : it.title,
           'date': date,
           'e': it.isEvent,
-          'parent': it.isEvent ? '' : g.path(it.id),
+          'parent': it.isEvent ? it.eventSummary : g.path(it.id),
         });
       }
     }
@@ -158,10 +168,31 @@ class WidgetSync {
   static Future<void> push(Graph g) async {
     if (!supported) return;
     try {
-      await HomeWidget.saveWidgetData<String>(_kData, jsonEncode(buildData(g)));
+      // 위젯에서 체크했지만 아직 앱이 반영하지 않은 것은 표시를 유지한다
+      var data = buildData(g);
+      final raw = await HomeWidget.getWidgetData<String>(_kDoneQueue);
+      if (raw != null && raw.isNotEmpty) {
+        for (final id in List<String>.from(jsonDecode(raw) as List)) {
+          data = markDone(data, id);
+        }
+      }
+      await HomeWidget.saveWidgetData<String>(_kData, jsonEncode(data));
       await updateAll();
     } catch (e) {
       debugPrint('widget update failed: $e');
+    }
+  }
+
+  /// 로그아웃: 위젯에 남은 이전 계정의 할 일을 지운다.
+  static Future<void> clear() async {
+    if (!supported) return;
+    _debounce?.cancel();
+    try {
+      await HomeWidget.saveWidgetData<String>(_kData, null);
+      await HomeWidget.saveWidgetData<String>(_kDoneQueue, null);
+      await updateAll();
+    } catch (e) {
+      debugPrint('widget clear failed: $e');
     }
   }
 

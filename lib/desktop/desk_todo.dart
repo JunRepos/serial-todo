@@ -164,6 +164,11 @@ class _DeskTodoState extends State<DeskTodo> {
       ),
     );
 
+    final todayEvents = [
+      for (final e in g.byDate[todayKey] ?? const <Item>[])
+        if (e.isEvent) e,
+    ];
+
     // 계열: 하위가 있고 아직 끝나지 않은 목표
     final series = [
       for (final goal in g.orderedGoals())
@@ -191,6 +196,10 @@ class _DeskTodoState extends State<DeskTodo> {
             child: ListView(
               padding: const EdgeInsets.only(bottom: 8),
               children: [
+                if (todayEvents.isNotEmpty) ...[
+                  section('오늘 일정', todayEvents.length),
+                  for (final e in todayEvents) _row(DeskEventRow(it: e)),
+                ],
                 section('★ 오늘', lists.today.length),
                 if (lists.today.isEmpty)
                   Padding(

@@ -1,12 +1,14 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../logic/graph.dart';
 import '../models/item.dart';
 import '../ui/auth_page.dart';
 import '../ui/cal_chips.dart';
 import '../ui/common.dart';
+import '../ui/event_sheet.dart';
 import '../ui/item_sheet.dart';
 import '../ui/theme.dart';
 import 'desk_frame.dart';
@@ -23,7 +25,15 @@ class DeskCalendar extends StatefulWidget {
 class _DeskCalendarState extends State<DeskCalendar> {
   DateTime _month = DateTime(DateTime.now().year, DateTime.now().month);
 
-  void _shift(int n) => setState(() => _month = DateTime(_month.year, _month.month + n));
+  /// 사용자가 달을 넘기지 않았으면 달이 바뀔 때 저절로 이번 달을 따라간다
+  bool _following = true;
+  double _wheel = 0;
+  DateTime _wheelAt = DateTime(2000);
+
+  void _shift(int n) => setState(() {
+    _following = false;
+    _month = DateTime(_month.year, _month.month + n);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -32,23 +42,49 @@ class _DeskCalendarState extends State<DeskCalendar> {
       return const DeskFrame(title: Text('할일이많아'), child: AuthPage());
     }
     final now = DateTime.now();
+    if (_following) _month = DateTime(now.year, now.month);
     final isThisMonth = _month.year == now.year && _month.month == now.month;
     return DeskFrame(
       title: Text(DateFormat('yyyy년 M월', 'ko').format(_month)),
       actions: [
         if (!isThisMonth)
           TextButton(
-            onPressed: () => setState(() => _month = DateTime(now.year, now.month)),
+            onPressed: () => setState(() => _following = true),
             style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
             child: const Text('오늘'),
           ),
         DeskIconButton(icon: Icons.chevron_left, tooltip: '지난달', onTap: () => _shift(-1)),
         DeskIconButton(icon: Icons.chevron_right, tooltip: '다음달', onTap: () => _shift(1)),
+        DeskIconButton(
+          icon: Icons.logout,
+          tooltip: '로그아웃',
+          onTap: () async {
+            final ok = await showDialog<bool>(
+              context: context,
+              builder: (ctx) => AlertDialog(
+                title: const Text('로그아웃할까요?'),
+                actions: [
+                  TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('취소')),
+                  FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('로그아웃')),
+                ],
+              ),
+            );
+            if (ok == true) await Supabase.instance.client.auth.signOut();
+          },
+        ),
       ],
       // 마우스 휠로 달 넘기기
       child: Listener(
         onPointerSignal: (e) {
-          if (e is PointerScrollEvent && e.scrollDelta.dy.abs() > 0) _shift(e.scrollDelta.dy > 0 ? 1 : -1);
+          if (e is! PointerScrollEvent) return;
+          // 터치패드는 한 번 쓸 때 이벤트가 수십 개 온다: 모아서 한 달씩, 너무 빠르지 않게
+          _wheel += e.scrollDelta.dy;
+          final t = DateTime.now();
+          if (_wheel.abs() >= 80 && t.difference(_wheelAt).inMilliseconds > 250) {
+            _shift(_wheel > 0 ? 1 : -1);
+            _wheel = 0;
+            _wheelAt = t;
+          }
         },
         child: _MonthGrid(month: _month, graph: data.graph, onDay: (d) => showDayDialog(context, d)),
       ),
@@ -295,6 +331,17 @@ Future<void> showDayDialog(BuildContext context, DateTime day) {
                         builder: (context, _) =>
                             FilledButton(onPressed: c.text.trim().isEmpty ? null : submit, child: const Text('추가')),
                       ),
+                      // 시간·장소·알림까지 정해서 추가
+                      if (asEvent.value)
+                        IconButton(
+                          tooltip: '시간·장소·알림 정하기',
+                          icon: const Icon(Icons.tune, size: 18),
+                          onPressed: () {
+                            final t = c.text.trim();
+                            c.clear();
+                            openEventEditor(context, day: day, title: t);
+                          },
+                        ),
                     ],
                   ),
                   const SizedBox(height: 16),
@@ -338,8 +385,8 @@ class DeskEventRow extends StatelessWidget {
               child: Text(it.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 14)),
             ),
             Padding(
-              padding: const EdgeInsets.only(right: 10),
-              child: Text('일정', style: TextStyle(fontSize: 11.5, color: Tone.muted(context))),
+              padding: const EdgeInsets.only(left: 6, right: 10),
+              child: Text(it.eventSummary, maxLines: 1, style: TextStyle(fontSize: 11.5, color: Tone.muted(context))),
             ),
           ],
         ),

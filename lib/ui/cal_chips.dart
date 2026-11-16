@@ -59,7 +59,7 @@ class CalChip extends StatelessWidget {
               ),
             Expanded(
               child: Text(
-                it.title,
+                it.isEvent ? it.chipTitle : it.title,
                 maxLines: 1,
                 softWrap: false,
                 overflow: TextOverflow.clip,

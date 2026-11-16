@@ -7,6 +7,7 @@ import '../logic/graph.dart';
 import 'app_scope.dart';
 import 'auth_page.dart';
 import 'calendar_page.dart';
+import 'event_sheet.dart';
 import 'item_sheet.dart';
 import 'onboarding.dart';
 import 'sequence_page.dart';
@@ -104,52 +105,17 @@ class _ShellState extends State<Shell> {
     repo.add(parent.isEmpty ? null : parent, title, due: due == null ? null : dateKey(due), today: today);
   }
 
-  /// 캘린더 탭: 기본은 일정, 원하면 그날 마감인 할 일로.
-  Future<void> _addOnDate(Repository repo, DateTime day) async {
-    final c = TextEditingController();
-    var asEvent = true;
-    final res = await showDialog<(String, bool)>(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setS) => AlertDialog(
-          title: Text(DateFormat('M월 d일').format(day)),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              SegmentedButton<bool>(
-                showSelectedIcon: false,
-                segments: const [
-                  ButtonSegment(value: true, label: Text('일정')),
-                  ButtonSegment(value: false, label: Text('마감 할 일')),
-                ],
-                selected: {asEvent},
-                onSelectionChanged: (s) => setS(() => asEvent = s.first),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: c,
-                autofocus: true,
-                decoration: const InputDecoration(hintText: '제목'),
-                onSubmitted: (v) => Navigator.pop(ctx, (v, asEvent)),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('취소')),
-            FilledButton(onPressed: () => Navigator.pop(ctx, (c.text, asEvent)), child: const Text('추가')),
-          ],
-        ),
-      ),
-    );
-    if (res == null || res.$1.trim().isEmpty || !mounted) return;
-    if (res.$2) {
-      repo.addEvent(res.$1, dateKey(day));
-      return;
-    }
+  /// 캘린더 탭: 일정 편집 화면을 연다.
+  Future<void> _addOnDate(Repository repo, DateTime day) => openEventEditor(context, day: day);
+
+  /// 캘린더 탭: 선택한 날이 마감인 할 일 추가
+  Future<void> addDeadline(DateTime day) async {
+    final repo = AppScope.repo(context);
+    final title = await _askTitle('${DateFormat('M월 d일').format(day)} 마감 할 일');
+    if (title == null || title.trim().isEmpty || !mounted) return;
     final parent = repo.graph.goals.isEmpty ? '' : await pickParent(context, repo, title: '어디에 추가할까요?');
-    if (parent == null) return;
-    repo.add(parent.isEmpty ? null : parent, res.$1, due: dateKey(day));
+    // 고르지 않고 닫아도 적은 제목은 버리지 않고 새 목표로 둔다
+    repo.add(parent == null || parent.isEmpty ? null : parent, title, due: dateKey(day));
   }
 
   Future<String?> _askTitle(String what) {
@@ -175,7 +141,12 @@ class _ShellState extends State<Shell> {
   @override
   Widget build(BuildContext context) {
     final wide = MediaQuery.sizeOf(context).width >= 760;
-    final pages = [TreePage(key: _treeKey), const SequencePage(), const TodayPage(), CalendarPage(key: _calKey)];
+    final pages = [
+      TreePage(key: _treeKey),
+      const SequencePage(),
+      const TodayPage(),
+      CalendarPage(key: _calKey, onAddDeadline: addDeadline),
+    ];
     final body = IndexedStack(index: _tab, children: pages);
     final fabLabel = switch (_tab) {
       0 || 1 => '목표',
@@ -186,7 +157,19 @@ class _ShellState extends State<Shell> {
     return Scaffold(
       appBar: AppBar(
         title: Text(_dests[_tab].$3),
-        actions: [const _SyncChip(), _menu(context), const SizedBox(width: 4)],
+        actions: [
+          const _SyncChip(),
+          IconButton(
+            tooltip: '찾기',
+            icon: const Icon(Icons.search),
+            onPressed: () async {
+              final id = await showSearch<String?>(context: context, delegate: ItemSearch(AppScope.repo(context)));
+              if (id != null && context.mounted) openItemSheet(context, id);
+            },
+          ),
+          _menu(context),
+          const SizedBox(width: 4),
+        ],
       ),
       // 키보드가 떠 있을 때는 입력창의 [추가] 버튼을 가리지 않도록 숨긴다
       floatingActionButton: MediaQuery.viewInsetsOf(context).bottom > 0
@@ -238,6 +221,14 @@ class _ShellState extends State<Shell> {
         if (v == 'logout') Supabase.instance.client.auth.signOut();
         if (v == 'sync') AppScope.repo(context).refresh();
         if (v == 'help') showOnboarding(context);
+        if (v == 'hide') {
+          hideDone.value = !hideDone.value;
+          AppScope.prefsOf(context).setBool(kHideDone, hideDone.value);
+        }
+        if (v == 'fold' || v == 'unfold') {
+          if (_tab != 0) _setTab(0);
+          _treeKey.currentState?.collapseAll(v == 'fold');
+        }
         if (v == 'password') {
           Navigator.of(context).push(
             MaterialPageRoute<void>(
@@ -250,6 +241,10 @@ class _ShellState extends State<Shell> {
       },
       itemBuilder: (_) => [
         PopupMenuItem(enabled: false, child: Text(email)),
+        CheckedPopupMenuItem(value: 'hide', checked: hideDone.value, child: const Text('완료한 항목 숨기기')),
+        const PopupMenuItem(value: 'fold', child: Text('구조 모두 접기')),
+        const PopupMenuItem(value: 'unfold', child: Text('구조 모두 펴기')),
+        const PopupMenuDivider(),
         const PopupMenuItem(value: 'sync', child: Text('지금 동기화')),
         const PopupMenuItem(value: 'help', child: Text('사용법')),
         const PopupMenuItem(value: 'password', child: Text('비밀번호 변경')),
@@ -317,6 +312,63 @@ class _SyncChip extends StatelessWidget {
           Text(label, style: TextStyle(fontSize: 12, color: color)),
         ],
       ),
+    );
+  }
+}
+
+/// 제목·메모·상위 경로로 할 일과 일정을 찾는다. 고른 항목의 id를 돌려준다.
+class ItemSearch extends SearchDelegate<String?> {
+  ItemSearch(this.repo) : super(searchFieldLabel: '할 일·일정 찾기');
+  final Repository repo;
+
+  @override
+  List<Widget> buildActions(BuildContext context) => [
+    if (query.isNotEmpty) IconButton(tooltip: '지우기', icon: const Icon(Icons.close), onPressed: () => query = ''),
+  ];
+
+  @override
+  Widget buildLeading(BuildContext context) =>
+      IconButton(tooltip: '뒤로', icon: const Icon(Icons.arrow_back), onPressed: () => close(context, null));
+
+  @override
+  Widget buildResults(BuildContext context) => buildSuggestions(context);
+
+  @override
+  Widget buildSuggestions(BuildContext context) {
+    final g = repo.graph;
+    final q = query.trim().toLowerCase();
+    if (q.isEmpty) return const Center(child: Text('제목이나 메모의 일부를 입력하세요.'));
+    final hits = [
+      for (final it in g.all)
+        if (it.title.toLowerCase().contains(q) ||
+            it.note.toLowerCase().contains(q) ||
+            it.location.toLowerCase().contains(q))
+          it,
+    ];
+    if (hits.isEmpty) return const Center(child: Text('찾는 항목이 없습니다.'));
+    return ListView(
+      children: [
+        for (final it in hits.take(100))
+          ListTile(
+            leading: Icon(
+              it.isEvent
+                  ? Icons.event
+                  : g.isDone(it.id)
+                  ? Icons.check_circle
+                  : Icons.radio_button_unchecked,
+              size: 20,
+            ),
+            title: Text(it.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+            subtitle: Text(
+              it.isEvent
+                  ? '${it.due ?? ''} · ${it.eventSummary}'
+                  : (g.path(it.id).isEmpty ? it.levelName : g.path(it.id)),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            onTap: () => close(context, it.id),
+          ),
+      ],
     );
   }
 }

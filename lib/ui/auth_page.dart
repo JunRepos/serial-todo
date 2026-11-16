@@ -22,6 +22,7 @@ class _AuthPageState extends State<AuthPage> {
   bool _busy = false;
   String? _error;
   String? _info;
+  bool _showPw = false;
 
   /// 가입한 이메일로 재설정 링크를 보낸다. 링크는 웹에서 열리고 거기서 새 비밀번호를 정한다.
   Future<void> _forgot() async {
@@ -133,11 +134,18 @@ class _AuthPageState extends State<AuthPage> {
                     const SizedBox(height: 12),
                     TextField(
                       controller: _pw,
-                      obscureText: true,
+                      obscureText: !_showPw,
                       autofillHints: [_signup ? AutofillHints.newPassword : AutofillHints.password],
                       textInputAction: TextInputAction.done,
                       onSubmitted: (_) => _go(),
-                      decoration: const InputDecoration(labelText: '비밀번호'),
+                      decoration: InputDecoration(
+                        labelText: '비밀번호',
+                        suffixIcon: IconButton(
+                          tooltip: _showPw ? '비밀번호 가리기' : '비밀번호 보기',
+                          icon: Icon(_showPw ? Icons.visibility_off : Icons.visibility, size: 20),
+                          onPressed: () => setState(() => _showPw = !_showPw),
+                        ),
+                      ),
                     ),
                     if (_error != null) ...[
                       const SizedBox(height: 12),

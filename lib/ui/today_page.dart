@@ -15,21 +15,51 @@ class TodayPage extends StatelessWidget {
     final repo = AppScope.watch(context);
     final g = repo.graph;
     final l = g.todayLists();
+    final events = [
+      for (final e in g.byDate[dateKey(DateTime.now())] ?? const <Item>[])
+        if (e.isEvent) e,
+    ];
+    // ★는 아니지만 마감이 오늘이거나 지난 것: 놓치지 않게 따로 모은다
+    bool urgent(Item i) => (dday(i.due) ?? 1) <= 0;
+    final due = [...l.ready.where(urgent), ...l.wait.where(urgent)];
+    final ready = l.ready.where((i) => !urgent(i)).toList();
+    final wait = l.wait.where((i) => !urgent(i)).toList();
     return ListView(
       children: [
+        if (events.isNotEmpty) ...[
+          SectionTitle('오늘 일정', trailing: '${events.length}개'),
+          for (final e in events)
+            ListTile(
+              dense: true,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+              leading: Container(
+                width: 4,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primary,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              minLeadingWidth: 4,
+              title: Text(e.title, style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600)),
+              subtitle: Text(e.eventSummary),
+              onTap: () => openItemSheet(context, e.id),
+            ),
+        ],
         SectionTitle('오늘', trailing: '${l.today.length}개'),
         if (l.today.isEmpty)
-          const EmptyHint('★를 눌러 오늘 할 일을 고르세요.')
+          const EmptyHint('아래 목록이나 구조 탭에서 ☆를 눌러 오늘 할 일을 고르세요.')
         else
           for (final it in l.today) ItemCard(g: g, it: it),
-        SectionTitle('바로 할 수 있음', trailing: '${l.ready.length}개'),
-        if (l.ready.isEmpty)
-          const EmptyHint('바로 할 수 있는 액션이 없습니다.')
-        else
-          for (final it in l.ready) ItemCard(g: g, it: it),
-        if (l.wait.isNotEmpty) ...[
-          SectionTitle('대기 중', trailing: '${l.wait.length}개'),
-          for (final it in l.wait) ItemCard(g: g, it: it),
+        if (due.isNotEmpty) ...[
+          SectionTitle('오늘 마감 · 지난 마감', trailing: '${due.length}개'),
+          for (final it in due) ItemCard(g: g, it: it),
+        ],
+        SectionTitle('바로 할 수 있음', trailing: '${ready.length}개'),
+        if (ready.isEmpty) const EmptyHint('바로 할 수 있는 액션이 없습니다.') else for (final it in ready) ItemCard(g: g, it: it),
+        if (wait.isNotEmpty) ...[
+          SectionTitle('대기 중', trailing: '${wait.length}개'),
+          for (final it in wait) ItemCard(g: g, it: it),
         ],
         if (l.recent.isNotEmpty) ...[
           SectionTitle('최근 7일 완료', trailing: '${l.recent.length}개'),

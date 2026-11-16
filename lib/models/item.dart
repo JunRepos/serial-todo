@@ -46,13 +46,75 @@ class Item {
   /// 일정은 할 일 트리 밖에 있는 항목이다. level 3으로 구분하고 날짜는 [due]에 둔다.
   static const eventLevel = 3;
   bool get isEvent => level == eventLevel;
+
+  // 일정의 부가 정보는 일정에서 쓰지 않는 [deps]에 'key=value' 로 담는다(스키마 변경 없이 동기화).
+  //   t=HH:mm 시작 시각(없으면 하루 종일) · e=HH:mm 끝 시각 · end=yyyy-MM-dd 끝 날짜
+  //   loc=장소 · rem=알림(시작 몇 분 전, 하루 종일이면 그날 09:00 기준)
+  String? attr(String key) {
+    if (!isEvent) return null;
+    final p = '$key=';
+    for (final d in deps) {
+      if (d.startsWith(p)) return d.substring(p.length);
+    }
+    return null;
+  }
+
+  void setAttr(String key, String? value) {
+    final p = '$key=';
+    deps = [
+      for (final d in deps)
+        if (!d.startsWith(p)) d,
+      if (value != null && value.isNotEmpty) '$p$value',
+    ];
+  }
+
+  String? get startTime => attr('t');
+  String? get endTime => attr('e');
+  String? get endDate => attr('end');
+  String get location => attr('loc') ?? '';
+  int? get remindMinutes => int.tryParse(attr('rem') ?? '');
+
+  /// 달력 칸에 쓰는 한 줄: 시각이 있으면 앞에 붙인다
+  String get chipTitle => startTime == null ? title : '$startTime $title';
+
+  /// 시작 일시(하루 종일이면 그날 09:00). 알림 계산용.
+  DateTime? get eventStart {
+    final d = DateTime.tryParse(due ?? '');
+    if (d == null) return null;
+    final t = startTime?.split(':');
+    final h = t == null ? 9 : int.tryParse(t[0]) ?? 9, m = t == null || t.length < 2 ? 0 : int.tryParse(t[1]) ?? 0;
+    return DateTime(d.year, d.month, d.day, h, m);
+  }
+
+  /// 알림이 울릴 시각
+  DateTime? get remindAt {
+    final r = remindMinutes, s = eventStart;
+    return r == null || s == null ? null : s.subtract(Duration(minutes: r));
+  }
+
+  /// "14:00–15:00 · 장소" 같은 한 줄 요약
+  String get eventSummary {
+    final parts = <String>[
+      if (startTime != null) endTime == null ? startTime! : '$startTime–$endTime' else '하루 종일',
+      if (endDate != null && endDate != due) '~ ${endDate!.substring(5).replaceAll('-', '/')}',
+      if (location.isNotEmpty) location,
+    ];
+    return parts.join(' · ');
+  }
+
   static const priorityNames = {1: '높음', 2: '보통', 3: '낮음'};
 
   String get levelName => levelNames[level.clamp(0, 3)];
 
   Item copy() => Item.fromJson(toJson());
 
-  void touch() => updatedAt = DateTime.now().toUtc();
+  /// 고친 시각을 찍는다. 기기 시계가 다른 기기보다 느려도 이 변경이 서버에서 버려지지 않도록
+  /// 직전 값보다는 반드시 뒤가 되게 한다.
+  void touch() {
+    final now = DateTime.now().toUtc();
+    final min = updatedAt.add(const Duration(milliseconds: 1));
+    updatedAt = now.isAfter(min) ? now : min;
+  }
 
   Map<String, dynamic> toJson() => {
     'id': id,

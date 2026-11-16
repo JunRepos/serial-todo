@@ -28,9 +28,23 @@ class Graph {
     }
 
     walk(null);
+    // 두 기기에서 서로의 아래로 옮겨 상위 관계가 돌게 된 항목은 최상위로 올려 보이게 한다
+    if (treePos.length < byId.length) {
+      for (final i in byId.values.toList()) {
+        if (treePos.containsKey(i.id)) continue;
+        _detached.add(i.id);
+        for (final l in _kids.values) {
+          l.removeWhere((x) => x.id == i.id);
+        }
+        (_kids[_root] ??= []).add(i);
+        treePos[i.id] = n++;
+        walk(i.id);
+      }
+    }
   }
 
   static const _root = '_';
+  final Set<String> _detached = {};
 
   /// 할 일(목표·프로젝트·액션)
   final Map<String, Item> byId = {};
@@ -50,9 +64,20 @@ class Graph {
   /// 날짜별 달력 항목: 일정 먼저, 그다음 그날 마감인 할 일(미완료 먼저)
   Map<String, List<Item>> get byDate {
     final m = <String, List<Item>>{};
-    final evs = events.values.toList()..sort((a, b) => a.title.compareTo(b.title));
+    // 하루 종일 일정 먼저, 그다음 시작 시각 순
+    final evs = events.values.toList()
+      ..sort((a, b) {
+        final c = (a.startTime ?? '').compareTo(b.startTime ?? '');
+        return c != 0 ? c : a.title.compareTo(b.title);
+      });
     for (final e in evs) {
-      if (e.due != null && e.due!.isNotEmpty) (m[e.due!] ??= []).add(e);
+      final start = DateTime.tryParse(e.due ?? '');
+      if (start == null) continue;
+      final end = DateTime.tryParse(e.endDate ?? '') ?? start;
+      // 여러 날 일정은 날마다 표시 (지나치게 길면 60일까지만)
+      for (var d = start, n = 0; !d.isAfter(end) && n < 60; d = DateTime(d.year, d.month, d.day + 1), n++) {
+        (m[dateKey(d)] ??= []).add(e);
+      }
     }
     final open = <Item>[], done = <Item>[];
     for (final it in inTreeOrder) {
@@ -68,6 +93,7 @@ class Graph {
   List<Item> get goals => kids(null);
 
   String? parentOf(String id) {
+    if (_detached.contains(id)) return null;
     final p = byId[id]?.parentId;
     return (p != null && byId.containsKey(p)) ? p : null;
   }
@@ -213,11 +239,13 @@ class Graph {
 
   /// from에서 선행/하위 관계를 따라가 target에 닿는지 (순환 검사용)
   bool reaches(String from, String target) {
+    // target의 하위에 닿아도 순환이다 (하위가 끝나야 target이 끝나므로)
+    final hit = {target, ...descendants(target)};
     final seen = <String>{};
     final st = [from];
     while (st.isNotEmpty) {
       final x = st.removeLast();
-      if (x == target) return true;
+      if (hit.contains(x)) return true;
       if (!seen.add(x)) continue;
       for (final y in [x, ...ancestors(x)]) {
         st.addAll(effDeps(y));
@@ -225,6 +253,25 @@ class Graph {
       st.addAll(kids(x).map((c) => c.id));
     }
     return false;
+  }
+
+  /// id 아래로 몇 단계가 더 있는지 (하위 없음 = 0)
+  int height(String id) {
+    var h = 0;
+    for (final c in kids(id)) {
+      final x = height(c.id) + 1;
+      if (x > h) h = x;
+    }
+    return h;
+  }
+
+  /// id를 newParent(null이면 최상위) 아래로 옮길 수 있는지: 자기·하위로는 못 가고, 3단계를 넘지 않아야 한다.
+  bool canMove(String id, String? newParent) {
+    if (!byId.containsKey(id)) return false;
+    if (newParent == null) return true;
+    final p = byId[newParent];
+    if (p == null || newParent == id || descendants(id).contains(newParent)) return false;
+    return ancestors(newParent).length + 1 + height(id) <= 2;
   }
 
   /// 선행으로 고를 수 있는 후보. 목표는 다른 목표, 나머지는 같은 목표 안(자기·상위·하위 제외).

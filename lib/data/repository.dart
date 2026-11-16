@@ -77,6 +77,11 @@ class Repository extends ChangeNotifier {
   Future<void> stop() async {
     _uid = null;
     await _teardown();
+    // 로그아웃한 계정의 할 일이 화면·위젯에 남지 않게 비운다 (기기 캐시는 다음 로그인을 위해 둔다)
+    _items.clear();
+    _pending.clear();
+    graph = Graph(const []);
+    if (!_disposed) notifyListeners();
   }
 
   /// 계정 삭제 후: 이 기기에 남은 그 계정의 캐시·대기열을 지운다.
@@ -103,8 +108,11 @@ class Repository extends ChangeNotifier {
     if (ch != null) await _client.removeChannel(ch);
   }
 
+  bool _disposed = false;
+
   @override
   void dispose() {
+    _disposed = true;
     stop();
     super.dispose();
   }
@@ -130,7 +138,9 @@ class Repository extends ChangeNotifier {
           callback: (p) {
             final rec = p.newRecord;
             if (rec.isEmpty) return;
-            if (_mergeRemote([rec])) _rebuild(push: false);
+            if (_uid != uid) return;
+            // 실시간으로 온 행은 커서를 옮기지 않는다(그 사이 놓친 변경을 다음 pull이 건너뛰지 않게)
+            if (_mergeRemote([rec], advance: false)) _rebuild(push: false);
           },
         )
         .subscribe((status, [err]) {
@@ -142,6 +152,7 @@ class Repository extends ChangeNotifier {
   }
 
   Future<void> _pull() async {
+    final uid = _uid;
     try {
       // 다른 기기의 시계와 무관하게, 서버가 찍은 synced_at 으로 변경분을 가져온다
       final since = _cursor == null
@@ -153,6 +164,7 @@ class Repository extends ChangeNotifier {
         var q = _client.from('items').select();
         if (since != null) q = q.gt('synced_at', since);
         final rows = await q.order('synced_at').order('id').range(from, from + page - 1);
+        if (_uid != uid) return; // 그 사이 다른 계정으로 바뀌었다
         if (_mergeRemote(List<Map<String, dynamic>>.from(rows))) changed = true;
         if (rows.length < page) break;
       }
@@ -181,11 +193,11 @@ class Repository extends ChangeNotifier {
   }
 
   /// 원격 행을 LWW로 합친다. 바뀐 게 있으면 true.
-  bool _mergeRemote(List<Map<String, dynamic>> rows) {
+  bool _mergeRemote(List<Map<String, dynamic>> rows, {bool advance = true}) {
     var changed = false;
     for (final r in rows) {
       final s = r['synced_at']?.toString();
-      if (s != null && (_cursor == null || s.compareTo(_cursor!) > 0)) _cursor = s;
+      if (advance && s != null && (_cursor == null || s.compareTo(_cursor!) > 0)) _cursor = s;
       final remote = Item.fromJson(r);
       final local = _items[remote.id];
       if (local != null && !remote.updatedAt.isAfter(local.updatedAt)) {
@@ -331,6 +343,8 @@ class Repository extends ChangeNotifier {
       final goals = graph.goals;
       it
         ..level = 0
+        ..deps =
+            [] // 일정의 시각·장소 등 부가 정보는 버린다
         ..sort = goals.isEmpty ? 1 : goals.last.sort + 1;
     }
     _commit(changed);
@@ -352,9 +366,10 @@ class Repository extends ChangeNotifier {
     );
     // 상위 항목에 하위가 처음 생기면 그 상위의 상태는 의미가 없어지므로 정리
     final changed = [it];
-    if (p != null && sib.isEmpty && p.status != 'todo') {
+    if (p != null && sib.isEmpty && (p.status != 'todo' || p.today)) {
       p.status = 'todo';
       p.doneAt = null;
+      p.today = false;
       changed.add(p);
     }
     _commit(changed);
@@ -451,6 +466,106 @@ class Repository extends ChangeNotifier {
     it.sort = o;
     if (other.sort == it.sort) it.sort += dir;
     _commit([it, other]);
+  }
+
+  /// 끌어다 놓기: id를 newParent 아래로 옮긴다. before/after 중 하나를 주면 그 형제의 앞/뒤, 없으면 맨 끝.
+  /// 단계(목표·프로젝트·액션)는 새 위치에 맞게 바뀌고, 다른 목표로 넘어가 뜻이 없어진 선행 관계는 정리한다.
+  bool moveTo(String id, String? newParent, {String? before, String? after}) {
+    final it = _items[id];
+    if (it == null || it.isEvent || !graph.canMove(id, newParent)) return false;
+    final g = graph;
+    final sib = g.kids(newParent).where((s) => s.id != id).toList();
+    double sort;
+    final ref = before ?? after;
+    final i = ref == null ? -1 : sib.indexWhere((s) => s.id == ref);
+    if (i < 0) {
+      sort = sib.isEmpty ? 1 : sib.last.sort + 1;
+    } else if (before != null) {
+      sort = i == 0 ? sib[0].sort - 1 : (sib[i - 1].sort + sib[i].sort) / 2;
+    } else {
+      sort = i == sib.length - 1 ? sib[i].sort + 1 : (sib[i].sort + sib[i + 1].sort) / 2;
+    }
+    final oldParent = g.parentOf(id);
+    if (oldParent == newParent && it.sort == sort) return false;
+
+    final changed = <String, Item>{id: it};
+    final newLevel = newParent == null ? 0 : g[newParent]!.level + 1;
+    final delta = newLevel - it.level;
+    it
+      ..parentId = newParent
+      ..sort = sort
+      ..level = newLevel;
+    final moved = {id, ...g.descendants(id)};
+    if (delta != 0) {
+      for (final d in g.descendants(id)) {
+        final x = _items[d]!;
+        x.level = (x.level + delta).clamp(0, 2);
+        changed[d] = x;
+      }
+    }
+    // 하위가 처음 생긴 상위의 상태는 의미가 없으므로 정리 (add와 같은 규칙)
+    final np = newParent == null ? null : _items[newParent];
+    if (np != null && g.kids(newParent).isEmpty && (np.status != 'todo' || np.today)) {
+      np
+        ..status = 'todo'
+        ..doneAt = null
+        ..today = false;
+      changed[np.id] = np;
+    }
+
+    // 새 구조에서 뜻이 없어진 선행 관계 정리: 다른 목표의 항목, 자기 상위·하위, 목표↔비목표
+    var ng = Graph(_items.values);
+    bool valid(Item x, String d) {
+      final dep = ng.byId[d];
+      if (dep == null) return true; // 지워진 항목은 그래프가 알아서 무시한다
+      final xGoal = ng.parentOf(x.id) == null, dGoal = ng.parentOf(d) == null;
+      if (xGoal || dGoal) return xGoal && dGoal;
+      if (ng.goalOf(x.id)?.id != ng.goalOf(d)?.id) return false;
+      return !ng.ancestors(x.id).contains(d) && !ng.descendants(x.id).contains(d);
+    }
+
+    void prune(bool Function(Item x, String d) keep) {
+      for (final x in ng.byId.values) {
+        if (x.deps.isEmpty) continue;
+        final kept = x.deps.where((d) => keep(x, d)).toList();
+        if (kept.length != x.deps.length) {
+          x.deps = kept;
+          changed[x.id] = x;
+        }
+      }
+    }
+
+    prune(valid);
+    // 그래도 순환이 생기면 옮긴 묶음과 바깥 사이의 선행 관계를 끊는다
+    ng = Graph(_items.values);
+    final goal = ng.goalOf(id);
+    if (goal != null && ng.sequenceOf(goal.id).cyc.isNotEmpty) {
+      prune((x, d) => moved.contains(x.id) == moved.contains(d));
+    }
+    _commit(changed.values);
+    return true;
+  }
+
+  /// 일정 만들기·고치기. id가 없으면 새로 만든다. attrs의 값이 null이면 그 정보는 지운다.
+  Item? saveEvent({
+    String? id,
+    required String title,
+    required String date,
+    Map<String, String?> attrs = const {},
+    String? note,
+  }) {
+    title = title.trim();
+    if (title.isEmpty) return null;
+    final it = (id == null ? null : _items[id]) ?? Item(id: newId(), level: Item.eventLevel);
+    it
+      ..level = Item.eventLevel
+      ..title = title
+      ..due = date
+      ..deleted = false;
+    if (note != null) it.note = note;
+    attrs.forEach(it.setAttr);
+    _commit([it]);
+    return it;
   }
 
   /// 하위 전체 소프트 삭제 + 다른 항목 deps에서 제거. 되돌리기용 스냅샷 반환.

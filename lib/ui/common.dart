@@ -1,8 +1,14 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../logic/graph.dart';
 import '../models/item.dart';
 import 'theme.dart';
+
+/// 색 바탕 위에 올릴 글자색 (밝은 바탕엔 어두운 글자)
+Color onColor(Color bg) =>
+    ThemeData.estimateBrightnessForColor(bg) == Brightness.dark ? Colors.white : const Color(0xFF1B1F1D);
 
 class Badge2 extends StatelessWidget {
   const Badge2(this.text, {super.key, this.color, this.filled = false});
@@ -20,7 +26,7 @@ class Badge2 extends StatelessWidget {
         text,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
-        style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: filled ? Colors.white : c, height: 1.3),
+        style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: filled ? onColor(c) : c, height: 1.3),
       ),
     );
   }
@@ -219,4 +225,87 @@ class SectionTitle extends StatelessWidget {
       ),
     );
   }
+}
+
+OverlayEntry? _toast;
+Timer? _toastTimer;
+
+void hideTopToast() {
+  _toastTimer?.cancel();
+  _toastTimer = null;
+  _toast?.remove();
+  _toast = null;
+}
+
+/// 화면 위쪽에 잠깐 뜨는 작은 알림. 아래쪽 입력창이나 버튼을 가리지 않는다.
+/// [actionLabel]을 주면 되돌리기 같은 버튼이 붙는다.
+void showTopToast(
+  BuildContext? context,
+  String text, {
+  String? actionLabel,
+  VoidCallback? onAction,
+  Duration duration = const Duration(seconds: 5),
+  OverlayState? overlay,
+}) {
+  overlay ??= context == null ? null : Overlay.maybeOf(context, rootOverlay: true);
+  if (overlay == null) return;
+  hideTopToast();
+  final entry = OverlayEntry(
+    builder: (ctx) {
+      final scheme = Theme.of(ctx).colorScheme;
+      return Positioned(
+        top: MediaQuery.paddingOf(ctx).top + 8,
+        left: 12,
+        right: 12,
+        child: Align(
+          alignment: Alignment.topCenter,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 440),
+            child: Material(
+              elevation: 6,
+              color: scheme.inverseSurface,
+              borderRadius: BorderRadius.circular(12),
+              child: Padding(
+                padding: const EdgeInsets.only(left: 14, right: 4),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Flexible(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        child: Text(
+                          text,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(color: scheme.onInverseSurface, fontSize: 13.5),
+                        ),
+                      ),
+                    ),
+                    if (actionLabel != null)
+                      TextButton(
+                        onPressed: () {
+                          hideTopToast();
+                          onAction?.call();
+                        },
+                        style: TextButton.styleFrom(foregroundColor: scheme.inversePrimary),
+                        child: Text(actionLabel),
+                      ),
+                    IconButton(
+                      tooltip: '닫기',
+                      visualDensity: VisualDensity.compact,
+                      icon: Icon(Icons.close, size: 16, color: scheme.onInverseSurface),
+                      onPressed: hideTopToast,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    },
+  );
+  _toast = entry;
+  overlay.insert(entry);
+  _toastTimer = Timer(duration, hideTopToast);
 }

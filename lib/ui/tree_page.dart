@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../data/repository.dart';
 import '../logic/graph.dart';
@@ -8,6 +11,10 @@ import 'common.dart';
 import 'item_sheet.dart';
 import 'quick_add.dart';
 import 'theme.dart';
+
+/// 완료한 항목 숨기기 (메뉴에서 켜고 끈다)
+final hideDone = ValueNotifier<bool>(false);
+const kHideDone = 'ui_hide_done';
 
 class TreePage extends StatefulWidget {
   const TreePage({super.key});
@@ -23,31 +30,111 @@ class TreePageState extends State<TreePage> {
   bool _addingGoal = false;
   bool _loaded = false;
 
+  // 끌어 옮기는 동안 목록 위아래 끝에 가까이 가면 저절로 스크롤한다
+  final _scroll = ScrollController();
+  final _listKey = GlobalKey();
+  Timer? _autoScroll;
+  double _scrollSpeed = 0;
+
+  void _onDragUpdate(Offset global) {
+    final box = _listKey.currentContext?.findRenderObject() as RenderBox?;
+    if (box == null) return;
+    final y = box.globalToLocal(global).dy, h = box.size.height;
+    const edge = 64.0;
+    _scrollSpeed = y < edge ? -(edge - y) / 4 : (y > h - edge ? (y - (h - edge)) / 4 : 0);
+    if (_scrollSpeed == 0) {
+      _autoScroll?.cancel();
+      _autoScroll = null;
+    } else {
+      _autoScroll ??= Timer.periodic(const Duration(milliseconds: 16), (_) {
+        if (!_scroll.hasClients) return;
+        final pos = _scroll.position;
+        _scroll.jumpTo((pos.pixels + _scrollSpeed).clamp(pos.minScrollExtent, pos.maxScrollExtent));
+      });
+    }
+  }
+
+  void _onDragEnd() {
+    _autoScroll?.cancel();
+    _autoScroll = null;
+  }
+
+  @override
+  void dispose() {
+    hideDone.removeListener(_onHideDone);
+    _autoScroll?.cancel();
+    _scroll.dispose();
+    super.dispose();
+  }
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (!_loaded) {
       _loaded = true;
       _collapsed = (AppScope.prefsOf(context).getStringList(_kCollapsed) ?? const []).toSet();
+      hideDone.value = AppScope.prefsOf(context).getBool(kHideDone) ?? false;
+      hideDone.addListener(_onHideDone);
     }
   }
 
+  void _onHideDone() {
+    if (mounted) setState(() {});
+  }
+
+  /// 메뉴: 전부 접기 / 전부 펴기
+  void collapseAll(bool collapse) {
+    final g = AppScope.repo(context).graph;
+    setState(
+      () => _collapsed = collapse
+          ? {
+              for (final i in g.byId.values)
+                if (!g.isLeaf(i.id)) i.id,
+            }
+          : {},
+    );
+    AppScope.prefsOf(context).setStringList(_kCollapsed, _collapsed.toList());
+  }
+
   /// FAB: 새 목표 입력창 열기
-  void startGoal() => setState(() {
-    _addingGoal = true;
-    _addingTo = null;
-  });
+  void startGoal() {
+    setState(() {
+      _addingGoal = true;
+      _addingTo = null;
+    });
+    if (_scroll.hasClients) _scroll.jumpTo(0);
+  }
+
+  // 입력창이 화면 밖에 생기면 보이는 곳까지 스크롤한다
+  final _addKey = GlobalKey();
+  void _revealAdd([int tries = 12]) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _addingTo == null) return;
+      final ctx = _addKey.currentContext;
+      if (ctx != null) {
+        Scrollable.ensureVisible(ctx, alignment: .5, duration: const Duration(milliseconds: 200));
+      } else if (tries > 0 && _scroll.hasClients) {
+        // 아직 그려지지 않을 만큼 아래에 있다: 조금씩 내려가며 찾는다
+        final pos = _scroll.position;
+        _scroll.jumpTo((pos.pixels + pos.viewportDimension * .8).clamp(0, pos.maxScrollExtent));
+        _revealAdd(tries - 1);
+      }
+    });
+  }
 
   void _toggle(String id) {
     setState(() => _collapsed.contains(id) ? _collapsed.remove(id) : _collapsed.add(id));
     AppScope.prefsOf(context).setStringList(_kCollapsed, _collapsed.toList());
   }
 
-  void _startAdd(String id) => setState(() {
-    _addingTo = id;
-    _addingGoal = false;
-    if (_collapsed.remove(id)) AppScope.prefsOf(context).setStringList(_kCollapsed, _collapsed.toList());
-  });
+  void _startAdd(String id) {
+    setState(() {
+      _addingTo = id;
+      _addingGoal = false;
+      if (_collapsed.remove(id)) AppScope.prefsOf(context).setStringList(_kCollapsed, _collapsed.toList());
+    });
+    _revealAdd();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -70,16 +157,30 @@ class TreePageState extends State<TreePage> {
       rows.add(const EmptyHint('목표를 하나 입력해 시작하세요.'));
     }
 
+    final hide = hideDone.value;
+    var hidden = 0;
     void walk(Item it) {
+      if (hide && g.isDone(it.id)) {
+        hidden++;
+        return;
+      }
       final open = !_collapsed.contains(it.id);
       rows.add(
-        _Row(
+        _DragRow(
           key: ValueKey(it.id),
           g: g,
           it: it,
-          open: open,
-          onToggle: () => _toggle(it.id),
-          onAdd: it.level < 2 ? () => _startAdd(it.id) : null,
+          // 펼쳐진 상위 항목은 아래쪽에 놓으면 그 안으로 들어간다
+          hasOpenKids: open && g.kids(it.id).isNotEmpty,
+          onDragUpdate: _onDragUpdate,
+          onDragEnd: _onDragEnd,
+          child: _Row(
+            g: g,
+            it: it,
+            open: open,
+            onToggle: () => _toggle(it.id),
+            onAdd: it.level < 2 ? () => _startAdd(it.id) : null,
+          ),
         ),
       );
       if (open) {
@@ -87,7 +188,7 @@ class TreePageState extends State<TreePage> {
         if (_addingTo == it.id) {
           rows.add(
             QuickAddField(
-              key: ValueKey('add-${it.id}'),
+              key: _addKey,
               parentId: it.id,
               indent: (it.level + 1) * 18.0,
               hint: '새 ${Item.levelNames[it.level + 1]} · 한 줄에 하나씩',
@@ -102,14 +203,151 @@ class TreePageState extends State<TreePage> {
       walk(goal);
       rows.add(const Divider(height: 12));
     }
+    if (hidden > 0) {
+      rows.add(
+        Center(
+          child: TextButton(
+            onPressed: () {
+              hideDone.value = false;
+              AppScope.prefsOf(context).setBool(kHideDone, false);
+            },
+            child: Text('완료한 항목 $hidden개 숨김 · 모두 보기'),
+          ),
+        ),
+      );
+    }
     rows.add(const SizedBox(height: 96));
 
-    return ListView(padding: const EdgeInsets.only(top: 4), children: rows);
+    return ListView(key: _listKey, controller: _scroll, padding: const EdgeInsets.only(top: 4), children: rows);
+  }
+}
+
+enum _Drop { before, into, after }
+
+/// 한 줄을 길게 눌러 끌 수 있게 하고, 다른 줄이 그 위에 놓일 자리(앞·안·뒤)를 표시한다.
+class _DragRow extends StatefulWidget {
+  const _DragRow({
+    super.key,
+    required this.g,
+    required this.it,
+    required this.hasOpenKids,
+    required this.onDragUpdate,
+    required this.onDragEnd,
+    required this.child,
+  });
+  final Graph g;
+  final Item it;
+  final bool hasOpenKids;
+  final void Function(Offset global) onDragUpdate;
+  final VoidCallback onDragEnd;
+  final Widget child;
+
+  @override
+  State<_DragRow> createState() => _DragRowState();
+}
+
+class _DragRowState extends State<_DragRow> {
+  _Drop? _zone;
+
+  /// 끌어 온 항목을 이 줄의 어디에 놓을 수 있는지. 놓을 수 없으면 null.
+  _Drop? _zoneFor(String dragId, Offset global) {
+    final g = widget.g, it = widget.it;
+    if (dragId == it.id || g.descendants(dragId).contains(it.id)) return null;
+    final box = context.findRenderObject() as RenderBox?;
+    if (box == null) return null;
+    final f = box.globalToLocal(global).dy / box.size.height;
+    final parent = g.parentOf(it.id);
+    final canInto = g.canMove(dragId, it.id), canSibling = g.canMove(dragId, parent);
+    if (canInto && (widget.hasOpenKids ? f > .35 : (f > .3 && f < .7))) return _Drop.into;
+    if (canSibling) return f < .5 ? _Drop.before : (widget.hasOpenKids ? null : _Drop.after);
+    return canInto ? _Drop.into : null;
+  }
+
+  void _accept(String dragId, _Drop zone) {
+    final repo = AppScope.repo(context);
+    final it = widget.it, g = widget.g;
+    final before = [for (final x in g.byId.values) x.copy()];
+    final ok = switch (zone) {
+      _Drop.into => repo.moveTo(dragId, it.id),
+      _Drop.before => repo.moveTo(dragId, g.parentOf(it.id), before: it.id),
+      _Drop.after => repo.moveTo(dragId, g.parentOf(it.id), after: it.id),
+    };
+    if (!ok) return;
+    HapticFeedback.selectionClick();
+    final moved = repo[dragId];
+    final where = moved == null
+        ? ''
+        : (repo.graph.parentOf(dragId) == null ? '목표로' : '"${repo.graph.path(dragId).split(' › ').last}" 아래로');
+    showTopToast(
+      context,
+      '"${moved?.title ?? ''}" $where 옮김',
+      actionLabel: '되돌리기',
+      onAction: () => repo.restore(before),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final it = widget.it;
+    final line = BorderSide(color: scheme.primary, width: 2.5);
+    final target = DragTarget<String>(
+      onWillAcceptWithDetails: (d) => _zoneFor(d.data, d.offset) != null,
+      onMove: (d) {
+        final z = _zoneFor(d.data, d.offset);
+        if (z != _zone) setState(() => _zone = z);
+      },
+      onLeave: (_) => setState(() => _zone = null),
+      onAcceptWithDetails: (d) {
+        final z = _zoneFor(d.data, d.offset);
+        setState(() => _zone = null);
+        if (z != null) _accept(d.data, z);
+      },
+      builder: (context, cand, _) => Container(
+        foregroundDecoration: BoxDecoration(
+          color: _zone == _Drop.into ? scheme.primary.withValues(alpha: .14) : null,
+          border: Border(
+            top: _zone == _Drop.before ? line : BorderSide.none,
+            bottom: _zone == _Drop.after ? line : BorderSide.none,
+          ),
+        ),
+        child: widget.child,
+      ),
+    );
+    return LongPressDraggable<String>(
+      data: it.id,
+      // 손가락(마우스) 위치를 기준으로 놓을 자리를 계산한다
+      dragAnchorStrategy: pointerDragAnchorStrategy,
+      onDragStarted: HapticFeedback.mediumImpact,
+      onDragUpdate: (d) => widget.onDragUpdate(d.globalPosition),
+      onDragEnd: (_) => widget.onDragEnd(),
+      onDraggableCanceled: (_, _) => widget.onDragEnd(),
+      feedback: Material(
+        elevation: 6,
+        borderRadius: BorderRadius.circular(10),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 260),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.drag_indicator, size: 18, color: Tone.muted(context)),
+                const SizedBox(width: 6),
+                Flexible(child: Text(it.title, maxLines: 1, overflow: TextOverflow.ellipsis)),
+              ],
+            ),
+          ),
+        ),
+      ),
+      childWhenDragging: Opacity(opacity: .35, child: target),
+      child: target,
+    );
   }
 }
 
 class _Row extends StatelessWidget {
-  const _Row({super.key, required this.g, required this.it, required this.open, required this.onToggle, this.onAdd});
+  const _Row({required this.g, required this.it, required this.open, required this.onToggle, this.onAdd});
   final Graph g;
   final Item it;
   final bool open;
@@ -166,14 +404,7 @@ class _Row extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
-                        children: [
-                          if (it.today && !done)
-                            Padding(
-                              padding: const EdgeInsets.only(right: 4),
-                              child: Icon(Icons.star_rounded, size: 16, color: Tone.warn(context)),
-                            ),
-                          Flexible(child: Text(it.title, style: titleStyle)),
-                        ],
+                        children: [Flexible(child: Text(it.title, style: titleStyle))],
                       ),
                       if (badges.isNotEmpty) ...[
                         const SizedBox(height: 4),
@@ -183,6 +414,17 @@ class _Row extends StatelessWidget {
                   ),
                 ),
               ),
+              if (leaf && !done)
+                IconButton(
+                  tooltip: it.today ? '오늘 할 일에서 빼기' : '오늘 할 일로',
+                  visualDensity: VisualDensity.compact,
+                  icon: Icon(
+                    it.today ? Icons.star_rounded : Icons.star_outline_rounded,
+                    size: 20,
+                    color: it.today ? Tone.warn(context) : scheme.outline,
+                  ),
+                  onPressed: () => repo.toggleToday(it.id),
+                ),
               if (onAdd != null)
                 IconButton(
                   tooltip: '${Item.levelNames[it.level + 1]} 추가',
@@ -227,12 +469,13 @@ class _Row extends StatelessWidget {
   }
 
   Widget _swipeBg(BuildContext context, Alignment a, IconData icon, Color c, String label) {
+    final fg = onColor(c);
     final children = [
-      Icon(icon, color: Colors.white),
+      Icon(icon, color: fg),
       const SizedBox(width: 8),
       Text(
         label,
-        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+        style: TextStyle(color: fg, fontWeight: FontWeight.w600),
       ),
     ];
     return Container(

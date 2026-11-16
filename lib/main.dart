@@ -16,6 +16,8 @@ import 'ui/brand.dart';
 import 'ui/onboarding.dart';
 import 'ui/shell.dart';
 import 'ui/theme.dart';
+import 'ui/common.dart';
+import 'widget/notif_sync.dart';
 import 'widget/widget_sync.dart';
 
 const supabaseUrl = String.fromEnvironment('SUPABASE_URL');
@@ -41,8 +43,13 @@ Future<void> main(List<String> args) async {
   final recovery = kIsWeb && link.contains('type=recovery') && link.contains('access_token');
   await Supabase.initialize(url: supabaseUrl, publishableKey: supabaseAnonKey, authOptions: authOptions);
   final prefs = await SharedPreferences.getInstance();
-  final repo = Repository(prefs, Supabase.instance.client)..onGraphChanged = WidgetSync.schedule;
+  final repo = Repository(prefs, Supabase.instance.client)
+    ..onGraphChanged = (g) {
+      WidgetSync.schedule(g);
+      NotifSync.schedule(g);
+    };
   await WidgetSync.init();
+  await NotifSync.init();
   runApp(SerialTodoApp(repo: repo, prefs: prefs, recovery: recovery));
 }
 
@@ -64,6 +71,7 @@ class _SerialTodoAppState extends State<SerialTodoApp> with WidgetsBindingObserv
   final _widgetUri = ValueNotifier<Uri?>(null);
   Session? _session;
   bool _needNewPassword = false;
+  final _nav = GlobalKey<NavigatorState>();
 
   @override
   void initState() {
@@ -79,12 +87,23 @@ class _SerialTodoAppState extends State<SerialTodoApp> with WidgetsBindingObserv
         _startRepo(uid);
       } else if (s.event == AuthChangeEvent.signedOut) {
         widget.repo.stop();
+        WidgetSync.clear();
       }
       setState(() {
         _session = s.session;
         if (s.event == AuthChangeEvent.passwordRecovery) _needNewPassword = true;
       });
     });
+    // 웹: 앱이 열려 있는 동안 일정 알림 시각이 되면 화면 위에 알린다
+    NotifSync.watch(
+      () => widget.repo.graph,
+      onFire: (e) => showTopToast(
+        null,
+        '🔔 ${e.title} · ${e.eventSummary}',
+        overlay: _nav.currentState?.overlay,
+        duration: const Duration(seconds: 20),
+      ),
+    );
     if (WidgetSync.supported) {
       HomeWidget.initiallyLaunchedFromHomeWidget().then(_onWidgetUri);
       _widgetSub = HomeWidget.widgetClicked.listen(_onWidgetUri);
@@ -118,6 +137,7 @@ class _SerialTodoAppState extends State<SerialTodoApp> with WidgetsBindingObserv
     WidgetsBinding.instance.removeObserver(this);
     _authSub.cancel();
     _widgetSub?.cancel();
+    NotifSync.stop();
     super.dispose();
   }
 
@@ -128,6 +148,7 @@ class _SerialTodoAppState extends State<SerialTodoApp> with WidgetsBindingObserv
       prefs: widget.prefs,
       child: MaterialApp(
         title: '할일이많아',
+        navigatorKey: _nav,
         debugShowCheckedModeBanner: false,
         theme: buildTheme(Brightness.light),
         darkTheme: buildTheme(Brightness.dark),

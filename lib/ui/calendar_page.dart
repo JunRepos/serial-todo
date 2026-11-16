@@ -6,12 +6,16 @@ import '../models/item.dart';
 import 'app_scope.dart';
 import 'cal_chips.dart';
 import 'common.dart';
+import 'event_sheet.dart';
 import 'item_sheet.dart';
 import 'theme.dart';
 import 'today_page.dart';
 
 class CalendarPage extends StatefulWidget {
-  const CalendarPage({super.key});
+  const CalendarPage({super.key, this.onAddDeadline});
+
+  /// 선택한 날이 마감인 할 일 추가 (상위 고르기는 바깥에서)
+  final void Function(DateTime day)? onAddDeadline;
 
   @override
   State<CalendarPage> createState() => CalendarPageState();
@@ -29,7 +33,12 @@ class CalendarPageState extends State<CalendarPage> {
     selected = DateTime(n.year, n.month, n.day);
   }
 
-  void _shift(int m) => setState(() => _month = DateTime(_month.year, _month.month + m));
+  /// 달을 넘기면 선택한 날도 그 달로 옮긴다(보이지 않는 날에 추가되지 않도록)
+  void _shift(int m) => setState(() {
+    _month = DateTime(_month.year, _month.month + m);
+    final n = DateTime.now();
+    selected = _month.year == n.year && _month.month == n.month ? DateTime(n.year, n.month, n.day) : _month;
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -153,29 +162,33 @@ class CalendarPageState extends State<CalendarPage> {
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
         child: Row(
           children: [
-            Text(
-              DateFormat('M월 d일 (E)', 'ko').format(selected),
-              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+            Flexible(
+              child: Text(
+                DateFormat('M월 d일 (E)', 'ko').format(selected),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+              ),
             ),
             const SizedBox(width: 8),
             Text('${selItems.length}개', style: TextStyle(color: Tone.muted(context))),
-            const SizedBox(width: 8),
-            Expanded(
-              child: selItems.isEmpty
-                  ? const SizedBox.shrink()
-                  : Text(
-                      '길게 눌러 날짜 이동',
-                      textAlign: TextAlign.right,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 12, color: Tone.muted(context)),
-                    ),
-            ),
+            const Spacer(),
+            if (widget.onAddDeadline != null)
+              TextButton.icon(
+                onPressed: () => widget.onAddDeadline!(selected),
+                style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
+                icon: const Icon(Icons.add, size: 16),
+                label: const Text('할 일'),
+              ),
           ],
         ),
       ),
       if (selItems.isEmpty)
-        const EmptyHint('이 날 일정이나 마감인 할 일이 없습니다.')
+        EmptyHint(
+          '이 날 일정이나 마감인 할 일이 없습니다.',
+          action: '일정 추가',
+          onAction: () => openEventEditor(context, day: selected),
+        )
       else
         for (final it in selItems)
           it.isEvent ? _EventCard(it: it) : ItemCard(g: g, it: it, draggable: true, showDue: false),
@@ -280,6 +293,7 @@ class _EventCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(it.title, style: const TextStyle(fontWeight: FontWeight.w600)),
+                      Text(it.eventSummary, style: TextStyle(fontSize: 12, color: Tone.muted(context))),
                       if (it.note.trim().isNotEmpty)
                         Text(
                           it.note.trim(),

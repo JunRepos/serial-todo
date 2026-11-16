@@ -86,10 +86,32 @@ class TodayWidgetProvider : HomeWidgetProvider() {
             return
         }
 
-        val items = data.optJSONArray("items")
-        val n = items?.length() ?: 0
+        // 앱이 데이터를 만든 날이 오늘이 아니면 어제의 완료 표시·진행률은 버린다
+        val today = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Calendar.getInstance().time)
+        val sameDay = data.optString("day", today) == today
+        val all = data.optJSONArray("items")
+        // 아직 안 끝낸 것부터 자리를 채운다 (체크한 줄이 자리를 다 차지하지 않게)
+        val items = ArrayList<JSONObject>()
+        if (all != null) {
+            for (i in 0 until all.length()) if (!all.getJSONObject(i).optBoolean("done")) items.add(all.getJSONObject(i))
+            if (sameDay) {
+                for (i in 0 until all.length()) if (all.getJSONObject(i).optBoolean("done")) items.add(all.getJSONObject(i))
+            }
+        }
+        val n = items.size
         val remaining = data.optInt("remaining", 0)
-        val doneToday = data.optInt("doneToday", 0)
+        val doneToday = if (sameDay) data.optInt("doneToday", 0) else 0
+
+        // 오늘 일정은 날짜 옆에 한 줄로
+        val events = data.optJSONArray("events")
+        if (sameDay && events != null && events.length() > 0) {
+            val first = events.optString(0)
+            val more = if (events.length() > 1) " 외 ${events.length() - 1}" else ""
+            views.setTextViewText(
+                R.id.date,
+                SimpleDateFormat("M월 d일 (E)", Locale.KOREAN).format(Calendar.getInstance().time) + " · 일정 $first$more",
+            )
+        }
 
         // 남은 ★ 개수 배지
         if (remaining > 0) {
@@ -129,10 +151,10 @@ class TodayWidgetProvider : HomeWidgetProvider() {
             views.setViewVisibility(labelIds[i], View.GONE)
             views.setViewVisibility(rowIds[i], View.GONE)
             if (i >= n || full) continue
-            val it = items!!.getJSONObject(i)
+            val it = items[i]
             val isToday = it.optBoolean("today")
             // 첫 "바로 할 수 있음" 항목 위에 구분 라벨 (★ 항목이 없으면 맨 위)
-            val needLabel = !isToday && (i == 0 || items.getJSONObject(i - 1).optBoolean("today"))
+            val needLabel = !isToday && !it.optBoolean("done") && (i == 0 || items[i - 1].optBoolean("today"))
             val cost = ROW_DP + if (needLabel) LABEL_DP else 0
             if (budget < cost && used > 0) {
                 full = true
