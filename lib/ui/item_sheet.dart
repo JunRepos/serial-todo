@@ -119,7 +119,7 @@ class _ItemSheetState extends State<_ItemSheet> {
             child: Padding(padding: EdgeInsets.all(32), child: Text('삭제된 항목입니다.')),
           );
         }
-        return _body(context, repo, g, it);
+        return it.isEvent ? _eventBody(context, repo, it) : _body(context, repo, g, it);
       },
     );
   }
@@ -280,6 +280,14 @@ class _ItemSheetState extends State<_ItemSheet> {
           ],
         ),
         const SizedBox(height: 28),
+        // 달력에서 만든 낱개 항목은 일정으로 돌릴 수 있다
+        if (leaf && g.parentOf(it.id) == null && it.due != null)
+          TextButton.icon(
+            style: TextButton.styleFrom(minimumSize: const Size.fromHeight(44)),
+            onPressed: () => repo.setEvent(it.id, true),
+            icon: const Icon(Icons.event_outlined),
+            label: const Text('일정으로 바꾸기 (할 일 목록에서 빠짐)'),
+          ),
         TextButton.icon(
           style: TextButton.styleFrom(foregroundColor: scheme.error, minimumSize: const Size.fromHeight(44)),
           onPressed: () {
@@ -289,6 +297,83 @@ class _ItemSheetState extends State<_ItemSheet> {
           },
           icon: const Icon(Icons.delete_outline),
           label: Text(g.descendants(it.id).isEmpty ? '삭제' : '삭제 (하위 ${g.descendants(it.id).length}개 포함)'),
+        ),
+      ],
+    );
+  }
+
+  /// 일정: 제목·날짜·메모만 있다
+  Widget _eventBody(BuildContext context, Repository repo, Item it) {
+    final scheme = Theme.of(context).colorScheme;
+    const gap = SizedBox(height: 18);
+    return ListView(
+      controller: widget.scroll,
+      padding: EdgeInsets.fromLTRB(20, 0, 20, 24 + MediaQuery.viewInsetsOf(context).bottom),
+      children: [
+        Align(
+          alignment: Alignment.centerLeft,
+          child: Badge2(it.levelName, color: scheme.primary, filled: true),
+        ),
+        const SizedBox(height: 10),
+        TextField(
+          controller: _title,
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+          decoration: const InputDecoration(hintText: '제목'),
+          textInputAction: TextInputAction.done,
+          onChanged: (_) {
+            _tDebounce?.cancel();
+            _tDebounce = Timer(const Duration(milliseconds: 500), _saveTitle);
+          },
+          onSubmitted: (_) {
+            _tDebounce?.cancel();
+            _saveTitle();
+          },
+        ),
+        gap,
+        _label('날짜'),
+        OutlinedButton.icon(
+          style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(44), alignment: Alignment.centerLeft),
+          icon: const Icon(Icons.event, size: 18),
+          label: Text(it.due ?? '날짜 선택'),
+          onPressed: () async {
+            final now = DateTime.now();
+            final d = await showDatePicker(
+              context: context,
+              initialDate: DateTime.tryParse(it.due ?? '') ?? now,
+              firstDate: DateTime(now.year - 5),
+              lastDate: DateTime(now.year + 10),
+            );
+            if (d != null) repo.setDue(it.id, dateKey(d));
+          },
+        ),
+        gap,
+        _label('메모'),
+        TextField(
+          controller: _note,
+          minLines: 3,
+          maxLines: 8,
+          decoration: const InputDecoration(hintText: '메모'),
+          onChanged: (v) {
+            _nDebounce?.cancel();
+            _nDebounce = Timer(const Duration(milliseconds: 600), () => repo.update(it.id, (x) => x.note = v));
+          },
+        ),
+        const SizedBox(height: 28),
+        TextButton.icon(
+          style: TextButton.styleFrom(minimumSize: const Size.fromHeight(44)),
+          onPressed: () => repo.setEvent(it.id, false),
+          icon: const Icon(Icons.check_circle_outline),
+          label: const Text('할 일로 바꾸기'),
+        ),
+        TextButton.icon(
+          style: TextButton.styleFrom(foregroundColor: scheme.error, minimumSize: const Size.fromHeight(44)),
+          onPressed: () {
+            final host = widget.hostContext;
+            Navigator.of(context).pop();
+            deleteWithUndo(host, repo, it.id);
+          },
+          icon: const Icon(Icons.delete_outline),
+          label: const Text('삭제'),
         ),
       ],
     );

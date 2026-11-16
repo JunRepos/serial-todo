@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../logic/graph.dart';
+import '../models/item.dart';
+import '../ui/common.dart';
 
 import '../ui/theme.dart';
 import 'desk_bridge.dart';
@@ -7,7 +12,7 @@ import 'desk_calendar.dart';
 import 'desk_frame.dart';
 import 'desk_main.dart';
 
-/// 바탕화면 할 일 목록: ★오늘 · 바로 할 수 있음 · 최근 완료
+/// 바탕화면 할 일 목록: ★오늘 · 바로 할 수 있음 · 계열(목표별로 접고 펴기) · 오늘 끝냄
 class DeskTodo extends StatefulWidget {
   const DeskTodo({super.key});
 
@@ -19,6 +24,64 @@ class _DeskTodoState extends State<DeskTodo> {
   final _c = TextEditingController();
   final _focus = FocusNode();
   bool _showDone = false;
+
+  /// 펼쳐 둔 것들: 목표 id, 접은 프로젝트는 '-id', 접은 구역은 '#이름'
+  static const _kOpen = 'desk_todo_open';
+  final _open = <String>{};
+  SharedPreferences? _prefs;
+
+  @override
+  void initState() {
+    super.initState();
+    SharedPreferences.getInstance().then((p) {
+      _prefs = p;
+      final saved = p.getStringList(_kOpen);
+      if (saved != null && mounted) setState(() => _open.addAll(saved));
+    }, onError: (_) {});
+  }
+
+  void _flip(String key) {
+    setState(() => _open.contains(key) ? _open.remove(key) : _open.add(key));
+    _prefs?.setStringList(_kOpen, _open.toList());
+  }
+
+  /// 목표 하나를 펼친 내용: 프로젝트는 접을 수 있는 소제목, 액션은 들여쓴 줄
+  List<Widget> _series(Graph g, Item goal) {
+    final out = <Widget>[];
+    void walk(String parent, int depth) {
+      for (final it in g.kids(parent)) {
+        final pad = EdgeInsets.only(left: 6.0 + depth * 14, right: 6);
+        if (g.isLeaf(it.id)) {
+          out.add(
+            Padding(
+              padding: pad,
+              child: DeskItemRow(it: it, graph: g, showPath: false),
+            ),
+          );
+          continue;
+        }
+        final shut = _open.contains('-${it.id}');
+        final l = g.leaves(it.id);
+        out.add(
+          Padding(
+            padding: pad,
+            child: _GroupHeader(
+              title: it.title,
+              count: '${l.where(g.isDone).length}/${l.length}',
+              open: !shut,
+              done: g.isDone(it.id),
+              blocked: g.isBlocked(it.id),
+              onTap: () => _flip('-${it.id}'),
+            ),
+          ),
+        );
+        if (!shut) walk(it.id, depth + 1);
+      }
+    }
+
+    walk(goal.id, 1);
+    return out;
+  }
 
   @override
   void dispose() {
@@ -88,6 +151,25 @@ class _DeskTodoState extends State<DeskTodo> {
       ),
     );
 
+    Widget foldable(String label, int count, bool open, VoidCallback onTap) => InkWell(
+      onTap: onTap,
+      child: Row(
+        children: [
+          Expanded(child: section(label, count)),
+          Padding(
+            padding: const EdgeInsets.only(right: 12, top: 8),
+            child: Icon(open ? Icons.expand_less : Icons.expand_more, size: 18, color: Tone.muted(context)),
+          ),
+        ],
+      ),
+    );
+
+    // 계열: 하위가 있고 아직 끝나지 않은 목표
+    final series = [
+      for (final goal in g.orderedGoals())
+        if (!g.isLeaf(goal.id) && !g.isDone(goal.id)) goal,
+    ];
+
     return DeskFrame(
       title: const Text('오늘 할 일'),
       subtitle: Text(remaining == 0 ? date : '$date · $remaining개 남음'),
@@ -120,22 +202,30 @@ class _DeskTodoState extends State<DeskTodo> {
                   ),
                 for (final it in lists.today) _row(DeskItemRow(it: it, graph: g)),
                 if (lists.ready.isNotEmpty) ...[
-                  section('바로 할 수 있음', lists.ready.length),
-                  for (final it in lists.ready.take(30)) _row(DeskItemRow(it: it, graph: g)),
+                  foldable('바로 할 수 있음', lists.ready.length, !_open.contains('#ready'), () => _flip('#ready')),
+                  if (!_open.contains('#ready'))
+                    for (final it in lists.ready.take(30)) _row(DeskItemRow(it: it, graph: g)),
+                ],
+                if (series.isNotEmpty) ...[
+                  section('계열', series.length),
+                  for (final goal in series) ...[
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 6),
+                      child: _GroupHeader(
+                        title: goal.title,
+                        count: '${g.leaves(goal.id).where(g.isDone).length}/${g.leaves(goal.id).length}',
+                        open: _open.contains(goal.id),
+                        done: false,
+                        blocked: g.isBlocked(goal.id),
+                        goal: true,
+                        onTap: () => _flip(goal.id),
+                      ),
+                    ),
+                    if (_open.contains(goal.id)) ..._series(g, goal),
+                  ],
                 ],
                 if (doneToday.isNotEmpty) ...[
-                  InkWell(
-                    onTap: () => setState(() => _showDone = !_showDone),
-                    child: Row(
-                      children: [
-                        Expanded(child: section('오늘 끝냄', doneToday.length)),
-                        Padding(
-                          padding: const EdgeInsets.only(right: 12, top: 8),
-                          child: Icon(_showDone ? Icons.expand_less : Icons.expand_more, size: 18),
-                        ),
-                      ],
-                    ),
-                  ),
+                  foldable('오늘 끝냄', doneToday.length, _showDone, () => setState(() => _showDone = !_showDone)),
                   if (_showDone)
                     for (final it in doneToday) _row(DeskItemRow(it: it, graph: g)),
                 ],
@@ -170,4 +260,62 @@ class _DeskTodoState extends State<DeskTodo> {
   }
 
   Widget _row(Widget child) => Padding(padding: const EdgeInsets.symmetric(horizontal: 6), child: child);
+}
+
+/// 계열(목표)·프로젝트 제목 줄. 누르면 접고 편다.
+class _GroupHeader extends StatelessWidget {
+  const _GroupHeader({
+    required this.title,
+    required this.count,
+    required this.open,
+    required this.done,
+    required this.blocked,
+    required this.onTap,
+    this.goal = false,
+  });
+  final String title, count;
+  final bool open, done, blocked;
+  final VoidCallback onTap;
+
+  /// 목표 줄은 조금 더 크게
+  final bool goal;
+
+  @override
+  Widget build(BuildContext context) {
+    final muted = Tone.muted(context);
+    return InkWell(
+      borderRadius: BorderRadius.circular(8),
+      onTap: onTap,
+      child: Padding(
+        padding: EdgeInsets.symmetric(vertical: goal ? 7 : 5),
+        child: Row(
+          children: [
+            SizedBox(width: 40, child: Icon(open ? Icons.expand_more : Icons.chevron_right, size: 20, color: muted)),
+            Expanded(
+              child: Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: goal ? 14 : 13,
+                  fontWeight: goal ? FontWeight.w700 : FontWeight.w600,
+                  color: done ? muted : null,
+                  decoration: done ? TextDecoration.lineThrough : null,
+                ),
+              ),
+            ),
+            if (blocked && !done)
+              Padding(
+                padding: const EdgeInsets.only(left: 4),
+                child: Badge2('대기', color: Tone.warn(context)),
+              ),
+            Padding(
+              padding: const EdgeInsets.only(left: 8, right: 10),
+              child: Text(count, style: TextStyle(fontSize: 11.5, color: muted)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

@@ -41,10 +41,14 @@ class Item {
   DateTime updatedAt;
   bool deleted;
 
-  static const levelNames = ['목표', '프로젝트', '액션'];
+  static const levelNames = ['목표', '프로젝트', '액션', '일정'];
+
+  /// 일정은 할 일 트리 밖에 있는 항목이다. level 3으로 구분하고 날짜는 [due]에 둔다.
+  static const eventLevel = 3;
+  bool get isEvent => level == eventLevel;
   static const priorityNames = {1: '높음', 2: '보통', 3: '낮음'};
 
-  String get levelName => levelNames[level.clamp(0, 2)];
+  String get levelName => levelNames[level.clamp(0, 3)];
 
   Item copy() => Item.fromJson(toJson());
 

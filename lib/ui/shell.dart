@@ -90,7 +90,7 @@ class _ShellState extends State<Shell> {
       case 2:
         await _addWithParent(repo, today: true);
       case 3:
-        await _addWithParent(repo, due: _calKey.currentState?.selected ?? DateTime.now());
+        await _addOnDate(repo, _calKey.currentState?.selected ?? DateTime.now());
     }
   }
 
@@ -101,6 +101,54 @@ class _ShellState extends State<Shell> {
     final title = await _askTitle(what);
     if (title == null || title.trim().isEmpty) return;
     repo.add(parent.isEmpty ? null : parent, title, due: due == null ? null : dateKey(due), today: today);
+  }
+
+  /// 캘린더 탭: 기본은 일정, 원하면 그날 마감인 할 일로.
+  Future<void> _addOnDate(Repository repo, DateTime day) async {
+    final c = TextEditingController();
+    var asEvent = true;
+    final res = await showDialog<(String, bool)>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setS) => AlertDialog(
+          title: Text(DateFormat('M월 d일').format(day)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SegmentedButton<bool>(
+                showSelectedIcon: false,
+                segments: const [
+                  ButtonSegment(value: true, label: Text('일정')),
+                  ButtonSegment(value: false, label: Text('마감 할 일')),
+                ],
+                selected: {asEvent},
+                onSelectionChanged: (s) => setS(() => asEvent = s.first),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: c,
+                autofocus: true,
+                decoration: const InputDecoration(hintText: '제목'),
+                onSubmitted: (v) => Navigator.pop(ctx, (v, asEvent)),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('취소')),
+            FilledButton(onPressed: () => Navigator.pop(ctx, (c.text, asEvent)), child: const Text('추가')),
+          ],
+        ),
+      ),
+    );
+    if (res == null || res.$1.trim().isEmpty || !mounted) return;
+    if (res.$2) {
+      repo.addEvent(res.$1, dateKey(day));
+      return;
+    }
+    final parent = repo.graph.goals.isEmpty ? '' : await pickParent(context, repo, title: '어디에 추가할까요?');
+    if (parent == null) return;
+    repo.add(parent.isEmpty ? null : parent, res.$1, due: dateKey(day));
   }
 
   Future<String?> _askTitle(String what) {
@@ -131,7 +179,7 @@ class _ShellState extends State<Shell> {
     final fabLabel = switch (_tab) {
       0 || 1 => '목표',
       2 => '오늘 할 일',
-      _ => '마감 항목',
+      _ => '일정',
     };
 
     return Scaffold(

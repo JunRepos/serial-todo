@@ -297,6 +297,45 @@ class Repository extends ChangeNotifier {
 
   // ---------------------------------------------------------------- 변경 API
 
+  /// 일정 추가. 할 일 트리와는 따로 달력에만 보인다.
+  Item? addEvent(String title, String date) {
+    title = title.trim();
+    if (title.isEmpty) return null;
+    final it = Item(id: newId(), level: Item.eventLevel, title: title, due: date);
+    _commit([it]);
+    return it;
+  }
+
+  /// 하위가 없는 최상위 할 일 ↔ 일정 바꾸기
+  void setEvent(String id, bool event) {
+    final it = _items[id];
+    if (it == null || it.isEvent == event) return;
+    final changed = [it];
+    if (event) {
+      if (it.due == null || graph.parentOf(id) != null || !graph.isLeaf(id)) return;
+      it
+        ..level = Item.eventLevel
+        ..parentId = null
+        ..status = 'todo'
+        ..doneAt = null
+        ..today = false
+        ..seq = false
+        ..deps = [];
+      for (final o in _items.values) {
+        if (!o.deleted && o.deps.contains(id)) {
+          o.deps = o.deps.where((d) => d != id).toList();
+          changed.add(o);
+        }
+      }
+    } else {
+      final goals = graph.goals;
+      it
+        ..level = 0
+        ..sort = goals.isEmpty ? 1 : goals.last.sort + 1;
+    }
+    _commit(changed);
+  }
+
   Item? add(String? parentId, String title, {String? due, bool today = false}) {
     title = title.trim();
     if (title.isEmpty) return null;
@@ -392,7 +431,7 @@ class Repository extends ChangeNotifier {
 
   void toggleDone(String id) {
     final it = graph[id];
-    if (it == null) return;
+    if (it == null || it.isEvent) return;
     setStatus(id, it.status == 'done' ? 'todo' : 'done');
   }
 

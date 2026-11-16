@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../logic/graph.dart';
 import '../models/item.dart';
 import 'app_scope.dart';
+import 'cal_chips.dart';
 import 'common.dart';
 import 'item_sheet.dart';
 import 'theme.dart';
@@ -36,10 +37,7 @@ class CalendarPageState extends State<CalendarPage> {
     final g = repo.graph;
     final scheme = Theme.of(context).colorScheme;
 
-    final byDay = <String, List<Item>>{};
-    for (final it in g.inTreeOrder) {
-      if (it.due != null) (byDay[it.due!] ??= []).add(it);
-    }
+    final byDay = g.byDate;
     final noDue = g.inTreeOrder.where((i) => g.isLeaf(i.id) && !g.isDone(i.id) && i.due == null).toList();
     final selKey = dateKey(selected);
     final selItems = byDay[selKey] ?? const <Item>[];
@@ -111,9 +109,9 @@ class CalendarPageState extends State<CalendarPage> {
         padding: const EdgeInsets.symmetric(horizontal: 8),
         child: LayoutBuilder(
           builder: (context, box) {
-            // 칸 높이는 44~64로 제한해 넓은 화면에서도 달력이 지나치게 커지지 않게
+            // 칸 안에 일정 막대가 들어가도록 세로로 넉넉하게, 넓은 화면에서는 지나치게 커지지 않게
             final w = box.maxWidth / 7;
-            final h = (w / .86).clamp(44.0, 64.0);
+            final h = (w * 1.5).clamp(72.0, 104.0);
             return GridView.count(
               crossAxisCount: 7,
               shrinkWrap: true,
@@ -128,15 +126,13 @@ class CalendarPageState extends State<CalendarPage> {
                       final d = DateTime(_month.year, _month.month, day);
                       final key = dateKey(d);
                       final items = byDay[key] ?? const <Item>[];
-                      final open = items.where((i) => !g.isDone(i.id)).toList();
-                      final overdue = key.compareTo(todayKey) < 0 && open.isNotEmpty;
                       return _DayCell(
                         day: day,
                         isToday: key == todayKey,
                         selected: key == selKey,
-                        total: items.length,
-                        open: open.length,
-                        overdue: overdue,
+                        items: items,
+                        graph: g,
+                        past: key.compareTo(todayKey) < 0,
                         sunday: d.weekday == DateTime.sunday,
                         onTap: () => setState(() => selected = d),
                         onDrop: (id) {
@@ -179,9 +175,10 @@ class CalendarPageState extends State<CalendarPage> {
         ),
       ),
       if (selItems.isEmpty)
-        const EmptyHint('이 날 마감인 항목이 없습니다.')
+        const EmptyHint('이 날 일정이나 마감인 할 일이 없습니다.')
       else
-        for (final it in selItems) ItemCard(g: g, it: it, draggable: true, showDue: false),
+        for (final it in selItems)
+          it.isEvent ? _EventCard(it: it) : ItemCard(g: g, it: it, draggable: true, showDue: false),
     ];
 
     return LayoutBuilder(
@@ -255,80 +252,137 @@ class CalendarPageState extends State<CalendarPage> {
   }
 }
 
+/// 선택한 날의 일정 한 줄. 누르면 편집, 길게 눌러 다른 날로 옮긴다.
+class _EventCard extends StatelessWidget {
+  const _EventCard({required this.it});
+  final Item it;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final card = Card(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      elevation: 0,
+      color: scheme.primary.withValues(alpha: .12),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => openItemSheet(context, it.id),
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Container(width: 5, color: scheme.primary),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(it.title, style: const TextStyle(fontWeight: FontWeight.w600)),
+                      if (it.note.trim().isNotEmpty)
+                        Text(
+                          it.note.trim(),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontSize: 12, color: Tone.muted(context)),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(right: 12),
+                child: Center(child: Badge2('일정', color: scheme.primary)),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    return LongPressDraggable<String>(
+      data: it.id,
+      feedback: Material(
+        elevation: 6,
+        borderRadius: BorderRadius.circular(10),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 240),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            child: Text(it.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+          ),
+        ),
+      ),
+      childWhenDragging: Opacity(opacity: .4, child: card),
+      child: card,
+    );
+  }
+}
+
 class _DayCell extends StatelessWidget {
   const _DayCell({
     required this.day,
     required this.isToday,
     required this.selected,
-    required this.total,
-    required this.open,
-    required this.overdue,
+    required this.items,
+    required this.graph,
+    required this.past,
     required this.sunday,
     required this.onTap,
     required this.onDrop,
   });
-  final int day, total, open;
-  final bool isToday, selected, overdue, sunday;
+  final int day;
+  final List<Item> items;
+  final Graph graph;
+  final bool isToday, selected, past, sunday;
   final VoidCallback onTap;
   final void Function(String id) onDrop;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final dotColor = overdue ? scheme.error : (open > 0 ? scheme.primary : scheme.outline);
     return DragTarget<String>(
       onAcceptWithDetails: (d) => onDrop(d.data),
       builder: (context, cand, _) {
         final hover = cand.isNotEmpty;
         return InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(8),
           child: Container(
-            margin: const EdgeInsets.all(2),
+            margin: const EdgeInsets.all(1),
+            padding: const EdgeInsets.fromLTRB(2, 3, 2, 0),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(8),
               color: hover
                   ? scheme.primary.withValues(alpha: .25)
                   : selected
-                  ? scheme.primaryContainer.withValues(alpha: .6)
+                  ? scheme.primaryContainer.withValues(alpha: .45)
                   : null,
-              border: isToday ? Border.all(color: scheme.primary, width: 1.5) : null,
             ),
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(
-                  '$day',
-                  style: TextStyle(
-                    fontWeight: isToday || selected ? FontWeight.w700 : FontWeight.w400,
-                    color: sunday ? scheme.error : null,
+                Container(
+                  width: 24,
+                  height: 22,
+                  alignment: Alignment.center,
+                  decoration: isToday ? BoxDecoration(color: scheme.primary, shape: BoxShape.circle) : null,
+                  child: Text(
+                    '$day',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: isToday || selected ? FontWeight.w700 : FontWeight.w400,
+                      color: isToday
+                          ? scheme.onPrimary
+                          : sunday
+                          ? scheme.error
+                          : null,
+                    ),
                   ),
                 ),
-                const SizedBox(height: 4),
-                SizedBox(
-                  height: 14,
-                  child: total == 0
-                      ? null
-                      : total <= 3
-                      ? Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            for (var i = 0; i < total; i++)
-                              Container(
-                                width: 6,
-                                height: 6,
-                                margin: const EdgeInsets.symmetric(horizontal: 1.5),
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: i < open ? dotColor : scheme.outlineVariant,
-                                ),
-                              ),
-                          ],
-                        )
-                      : Text(
-                          '$total',
-                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: dotColor),
-                        ),
+                const SizedBox(height: 2),
+                // 구글 캘린더처럼 항목마다 색 막대로
+                Expanded(
+                  child: CalChipStack(items: items, graph: graph, past: past, lineHeight: 15.5, fontSize: 10),
                 ),
               ],
             ),

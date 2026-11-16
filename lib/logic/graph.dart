@@ -5,7 +5,9 @@ import '../models/item.dart';
 class Graph {
   Graph(Iterable<Item> all) {
     for (final i in all) {
-      if (!i.deleted) byId[i.id] = i;
+      if (i.deleted) continue;
+      // 일정은 할 일이 아니므로 트리·순서·오늘 계산에서 뺀다
+      (i.isEvent ? events : byId)[i.id] = i;
     }
     for (final i in byId.values) {
       final p = (i.parentId != null && byId.containsKey(i.parentId)) ? i.parentId! : _root;
@@ -29,13 +31,38 @@ class Graph {
   }
 
   static const _root = '_';
+
+  /// 할 일(목표·프로젝트·액션)
   final Map<String, Item> byId = {};
+
+  /// 일정
+  final Map<String, Item> events = {};
   final Map<String, List<Item>> _kids = {};
   final Map<String, int> treePos = {};
   final Map<String, bool> _doneMemo = {};
   final Map<String, List<String>> _leavesMemo = {};
 
-  Item? operator [](String id) => byId[id];
+  Item? operator [](String id) => byId[id] ?? events[id];
+
+  /// 할 일과 일정 전부
+  Iterable<Item> get all => byId.values.followedBy(events.values);
+
+  /// 날짜별 달력 항목: 일정 먼저, 그다음 그날 마감인 할 일(미완료 먼저)
+  Map<String, List<Item>> get byDate {
+    final m = <String, List<Item>>{};
+    final evs = events.values.toList()..sort((a, b) => a.title.compareTo(b.title));
+    for (final e in evs) {
+      if (e.due != null && e.due!.isNotEmpty) (m[e.due!] ??= []).add(e);
+    }
+    final open = <Item>[], done = <Item>[];
+    for (final it in inTreeOrder) {
+      if (it.due != null && it.due!.isNotEmpty) (isDone(it.id) ? done : open).add(it);
+    }
+    for (final it in open.followedBy(done)) {
+      (m[it.due!] ??= []).add(it);
+    }
+    return m;
+  }
 
   List<Item> kids(String? id) => _kids[id ?? _root] ?? const [];
   List<Item> get goals => kids(null);

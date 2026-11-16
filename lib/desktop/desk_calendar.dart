@@ -5,13 +5,14 @@ import 'package:intl/intl.dart';
 import '../logic/graph.dart';
 import '../models/item.dart';
 import '../ui/auth_page.dart';
+import '../ui/cal_chips.dart';
 import '../ui/common.dart';
 import '../ui/item_sheet.dart';
 import '../ui/theme.dart';
 import 'desk_frame.dart';
 import 'desk_main.dart';
 
-/// 바탕화면 캘린더: 월간 달력 칸마다 그날 마감인 항목을 적어 보여 준다.
+/// 바탕화면 캘린더: 월간 달력 칸마다 그날 일정과 마감인 할 일을 색 막대로 보여 준다.
 class DeskCalendar extends StatefulWidget {
   const DeskCalendar({super.key});
 
@@ -64,17 +65,7 @@ class _MonthGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final byDue = <String, List<Item>>{};
-    for (final it in graph.byId.values) {
-      if (it.due != null && it.due!.isNotEmpty) (byDue[it.due!] ??= []).add(it);
-    }
-    for (final l in byDue.values) {
-      l.sort((a, b) {
-        final da = graph.isDone(a.id) ? 1 : 0, db = graph.isDone(b.id) ? 1 : 0;
-        if (da != db) return da - db;
-        return a.level != b.level ? a.level - b.level : a.title.compareTo(b.title);
-      });
-    }
+    final byDue = graph.byDate;
     final first = DateTime(month.year, month.month);
     final start = first.subtract(Duration(days: first.weekday % 7)); // 일요일 시작
     final todayKey = dateKey(DateTime.now());
@@ -181,48 +172,30 @@ class _DayCell extends StatelessWidget {
           onTap: onTap,
           child: Padding(
             padding: const EdgeInsets.fromLTRB(4, 3, 3, 2),
-            child: LayoutBuilder(
-              builder: (context, box) {
-                const lineH = 15.0;
-                // 칸 높이에 들어가는 만큼만 적고, 넘치면 마지막 줄에 +n
-                final room = ((box.maxHeight - 19) / lineH).floor().clamp(0, 20);
-                final shown = items.length > room ? (room - 1).clamp(0, 20) : items.length;
-                final more = room > 0 && shown < items.length;
-                return ClipRect(
-                  child: OverflowBox(
-                    alignment: Alignment.topLeft,
-                    maxHeight: double.infinity,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 4),
-                          decoration: today
-                              ? BoxDecoration(color: scheme.primary, borderRadius: BorderRadius.circular(8))
-                              : null,
-                          child: Text(
-                            '${day.day}',
-                            style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: numColor, height: 1.4),
-                          ),
-                        ),
-                        for (final it in items.take(shown))
-                          SizedBox(
-                            height: lineH,
-                            child: _CellLine(it: it, done: graph.isDone(it.id), overdue: overdue, faded: !inMonth),
-                          ),
-                        if (more)
-                          Text('+${items.length - shown}', style: TextStyle(fontSize: 10.5, color: muted, height: 1.3)),
-                        if (room == 0 && items.isNotEmpty)
-                          Container(
-                            width: 4,
-                            height: 4,
-                            decoration: BoxDecoration(color: scheme.primary, shape: BoxShape.circle),
-                          ),
-                      ],
+            // 칸이 아주 작아도 넘침 오류 없이 잘려 보이도록 Stack으로 쌓는다
+            child: Stack(
+              clipBehavior: Clip.hardEdge,
+              children: [
+                Positioned(
+                  left: 0,
+                  top: 0,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    decoration: today
+                        ? BoxDecoration(color: scheme.primary, borderRadius: BorderRadius.circular(8))
+                        : null,
+                    child: Text(
+                      '${day.day}',
+                      style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: numColor, height: 1.4),
                     ),
                   ),
-                );
-              },
+                ),
+                // 구글 캘린더처럼 항목마다 색 막대로
+                Positioned.fill(
+                  top: 19,
+                  child: CalChipStack(items: items, graph: graph, past: overdue, faded: !inMonth),
+                ),
+              ],
             ),
           ),
         ),
@@ -231,65 +204,20 @@ class _DayCell extends StatelessWidget {
   }
 }
 
-class _CellLine extends StatelessWidget {
-  const _CellLine({required this.it, required this.done, required this.overdue, required this.faded});
-  final Item it;
-  final bool done, overdue, faded;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final dot = done
-        ? Tone.muted(context)
-        : overdue
-        ? Tone.danger(context)
-        : it.level == 0
-        ? scheme.tertiary
-        : scheme.primary;
-    return Opacity(
-      opacity: faded ? 0.5 : 1,
-      child: Row(
-        children: [
-          Container(
-            width: 5,
-            height: 5,
-            margin: const EdgeInsets.only(right: 3),
-            decoration: BoxDecoration(color: dot, shape: BoxShape.circle),
-          ),
-          Expanded(
-            child: Text(
-              it.title,
-              maxLines: 1,
-              overflow: TextOverflow.clip,
-              softWrap: false,
-              style: TextStyle(
-                fontSize: 11,
-                height: 1.2,
-                color: done ? Tone.muted(context) : scheme.onSurface,
-                decoration: done ? TextDecoration.lineThrough : null,
-                fontWeight: it.level == 0 ? FontWeight.w600 : FontWeight.w400,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// 날짜를 누르면: 그날 마감 항목 목록 + 그날 마감으로 새 항목 추가
+/// 날짜를 누르면: 그날 일정·마감 할 일 목록 + 일정(또는 그날 마감 할 일) 추가
 Future<void> showDayDialog(BuildContext context, DateTime day) {
   final data = DeskScope.of(context);
   final key = dateKey(day);
   final title = DateFormat('M월 d일 (E)', 'ko').format(day);
   final c = TextEditingController();
+  final asEvent = ValueNotifier(true);
   return showDialog<void>(
     context: context,
     builder: (ctx) {
       void submit() {
         final t = c.text.trim();
         if (t.isEmpty) return;
-        data.add(t, due: key);
+        data.add(t, due: key, event: asEvent.value);
         c.clear();
       }
 
@@ -306,11 +234,10 @@ Future<void> showDayDialog(BuildContext context, DateTime day) {
         content: SizedBox(
           width: 360,
           child: ListenableBuilder(
-            listenable: data,
+            listenable: Listenable.merge([data, asEvent]),
             builder: (context, _) {
               final g = data.graph;
-              final items = g.byId.values.where((e) => e.due == key).toList()
-                ..sort((a, b) => (g.isDone(a.id) ? 1 : 0) - (g.isDone(b.id) ? 1 : 0));
+              final items = g.byDate[key] ?? const <Item>[];
               return Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -318,24 +245,47 @@ Future<void> showDayDialog(BuildContext context, DateTime day) {
                   if (items.isEmpty)
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-                      child: Text('이날 마감인 항목이 없어요.', style: TextStyle(color: Tone.muted(context))),
+                      child: Text('이날 일정이나 마감인 할 일이 없어요.', style: TextStyle(color: Tone.muted(context))),
                     )
                   else
                     ConstrainedBox(
                       constraints: const BoxConstraints(maxHeight: 260),
                       child: ListView(
                         shrinkWrap: true,
-                        children: [for (final it in items) DeskItemRow(it: it, graph: g, onOpen: openItemSheet)],
+                        children: [
+                          for (final it in items)
+                            it.isEvent
+                                ? DeskEventRow(it: it, onOpen: openItemSheet)
+                                : DeskItemRow(it: it, graph: g, onOpen: openItemSheet),
+                        ],
                       ),
                     ),
                   const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      for (final (ev, label) in [(true, '일정'), (false, '할 일')])
+                        Padding(
+                          padding: const EdgeInsets.only(right: 6),
+                          child: ChoiceChip(
+                            label: Text(label),
+                            selected: asEvent.value == ev,
+                            visualDensity: VisualDensity.compact,
+                            onSelected: (_) => asEvent.value = ev,
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
                   Row(
                     children: [
                       Expanded(
                         child: TextField(
                           controller: c,
                           autofocus: true,
-                          decoration: const InputDecoration(hintText: '이날 마감으로 추가', isDense: true),
+                          decoration: InputDecoration(
+                            hintText: asEvent.value ? '일정 추가' : '이날 마감인 할 일 추가',
+                            isDense: true,
+                          ),
                           onSubmitted: (_) => submit(),
                         ),
                       ),
@@ -358,19 +308,62 @@ Future<void> showDayDialog(BuildContext context, DateTime day) {
   );
 }
 
+/// 일정 줄: 색 막대 · 제목. 누르면 편집.
+class DeskEventRow extends StatelessWidget {
+  const DeskEventRow({super.key, required this.it, this.onOpen});
+  final Item it;
+  final Future<void> Function(BuildContext, String)? onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return InkWell(
+      borderRadius: BorderRadius.circular(8),
+      onTap: onOpen == null ? null : () => onOpen!(context, it.id),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 40,
+              child: Center(
+                child: Container(
+                  width: 4,
+                  height: 20,
+                  decoration: BoxDecoration(color: scheme.primary, borderRadius: BorderRadius.circular(2)),
+                ),
+              ),
+            ),
+            Expanded(
+              child: Text(it.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 14)),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(right: 10),
+              child: Text('일정', style: TextStyle(fontSize: 11.5, color: Tone.muted(context))),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 /// 위젯 공용 항목 줄: 완료 체크 · 제목/경로 · 배지 · ★
 class DeskItemRow extends StatelessWidget {
-  const DeskItemRow({super.key, required this.it, required this.graph, this.onOpen});
+  const DeskItemRow({super.key, required this.it, required this.graph, this.onOpen, this.showPath = true});
   final Item it;
   final Graph graph;
   final Future<void> Function(BuildContext, String)? onOpen;
+
+  /// 계열 안에서 보여 줄 때는 상위 경로를 생략한다
+  final bool showPath;
 
   @override
   Widget build(BuildContext context) {
     final data = DeskScope.of(context);
     final done = graph.isDone(it.id);
     final leaf = graph.isLeaf(it.id);
-    final path = graph.path(it.id);
+    final path = showPath ? graph.path(it.id) : '';
     final badges = itemBadges(context, graph, it);
     return InkWell(
       borderRadius: BorderRadius.circular(8),

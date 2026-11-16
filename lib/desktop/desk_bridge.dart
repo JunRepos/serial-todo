@@ -64,7 +64,9 @@ abstract class DeskData extends ChangeNotifier {
 
   void toggleDone(String id);
   void toggleToday(String id);
-  void add(String title, {String? due, bool today = false});
+
+  /// [event]가 true면 [due] 날짜의 일정으로, 아니면 할 일로 추가한다.
+  void add(String title, {String? due, bool today = false, bool event = false});
   void refresh();
 }
 
@@ -120,7 +122,7 @@ class RelayData extends DeskData {
     if (it != null) {
       it.status = it.status == 'done' ? 'todo' : 'done';
       it.doneAt = it.status == 'done' ? DateTime.now().toUtc() : null;
-      _graph = Graph(_graph.byId.values);
+      _graph = Graph(_graph.all.toList());
       notifyListeners();
     }
     _act('toggleDone', {'id': id});
@@ -131,15 +133,15 @@ class RelayData extends DeskData {
     final it = _graph[id];
     if (it != null) {
       it.today = !it.today;
-      _graph = Graph(_graph.byId.values);
+      _graph = Graph(_graph.all.toList());
       notifyListeners();
     }
     _act('toggleToday', {'id': id});
   }
 
   @override
-  void add(String title, {String? due, bool today = false}) =>
-      _act('add', {'title': title, 'due': due, 'today': today});
+  void add(String title, {String? due, bool today = false, bool event = false}) =>
+      _act('add', {'title': title, 'due': due, 'today': today, 'event': event});
 
   @override
   void refresh() => _act('refresh', const {});

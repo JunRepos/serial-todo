@@ -126,7 +126,7 @@ class RepoData extends DeskData {
       'signedIn': _signedIn,
       'sync': sync.name,
       'pending': pending,
-      'items': [for (final it in repo.graph.byId.values) it.toJson()],
+      'items': [for (final it in repo.graph.all) it.toJson()],
     });
   }
 
@@ -142,7 +142,12 @@ class RepoData extends DeskData {
           case 'toggleToday':
             if (id != null) repo.toggleToday(id);
           case 'add':
-            add(m['title'] as String? ?? '', due: m['due'] as String?, today: m['today'] == true);
+            add(
+              m['title'] as String? ?? '',
+              due: m['due'] as String?,
+              today: m['today'] == true,
+              event: m['event'] == true,
+            );
           case 'refresh':
             refresh();
         }
@@ -156,7 +161,14 @@ class RepoData extends DeskData {
   @override
   void toggleToday(String id) => repo.toggleToday(id);
   @override
-  void add(String title, {String? due, bool today = false}) => repo.add(null, title, due: due, today: today);
+  void add(String title, {String? due, bool today = false, bool event = false}) {
+    if (event && due != null) {
+      repo.addEvent(title, due);
+    } else {
+      repo.add(null, title, due: due, today: today);
+    }
+  }
+
   @override
   void refresh() {
     if (_signedIn) repo.refresh();
